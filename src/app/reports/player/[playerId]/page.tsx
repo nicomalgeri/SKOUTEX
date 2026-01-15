@@ -121,23 +121,7 @@ export default async function PlayerReportPage({
   const generatedDateTime = formatDateTime(now);
 
   return (
-    <>
-      <style jsx global>{`
-        @media print {
-          body {
-            margin: 0;
-            padding: 0;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .page-break {
-            page-break-before: always;
-          }
-        }
-      `}</style>
-
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white print:m-0 print:p-0">
         {/* Print Controls - Hidden on Print */}
         <PrintControls playerId={playerId} isDense={isDense} />
 
@@ -464,6 +448,5 @@ export default async function PlayerReportPage({
           </footer>
         </div>
       </div>
-    </>
   );
 }
