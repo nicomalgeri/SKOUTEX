@@ -1,0 +1,88 @@
+"use client";
+
+import { Menu, Bell, Search } from "lucide-react";
+import { useAppStore } from "@/lib/store";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+interface HeaderProps {
+  title?: string;
+  subtitle?: string;
+}
+
+export default function Header({ title, subtitle }: HeaderProps) {
+  const { setSidebarOpen, sidebarOpen, user } = useAppStore();
+  const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/dashboard/search?q=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  return (
+    <header className="sticky top-0 z-30 backdrop-blur-xl border-b bg-white/80 border-gray-200">
+      <div className="flex items-center justify-between h-16 px-4 lg:px-6">
+        {/* Left: Menu button (mobile) + Title */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="lg:hidden p-2 transition-colors text-gray-500 hover:text-[#2C2C2C]"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+
+          {title && (
+            <div>
+              <h1 className="text-xl font-bold text-[#2C2C2C]">{title}</h1>
+              {subtitle && (
+                <p className="text-sm text-gray-500">{subtitle}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Center: Search */}
+        <form
+          onSubmit={handleSearch}
+          className="hidden md:flex flex-1 max-w-md mx-4"
+        >
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search players, clubs, or ask AI..."
+              className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:outline-none focus:border-[#0031FF] transition-all bg-gray-100 border border-gray-200 text-[#2C2C2C] placeholder-gray-500"
+            />
+          </div>
+        </form>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-3">
+          {/* Notifications */}
+          <button className="relative p-2 transition-colors text-gray-500 hover:text-[#2C2C2C]">
+            <Bell className="w-5 h-5" />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-[#0031FF] rounded-full" />
+          </button>
+
+          {/* User Avatar */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#0031FF] to-[#0050FF] flex items-center justify-center">
+              <span className="text-white text-sm font-semibold">
+                {user?.name?.[0]?.toUpperCase() || "U"}
+              </span>
+            </div>
+            <div className="hidden lg:block">
+              <p className="text-sm font-medium text-[#2C2C2C]">{user?.name || "User"}</p>
+              <p className="text-xs text-gray-500">{user?.role || "Member"}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
