@@ -6,6 +6,8 @@ import { useAppStore } from "@/lib/store";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { TransferWindowBadge } from "@/components/TransferWindowBadge";
+import { useActiveTransferWindow } from "@/lib/hooks";
 
 interface HeaderProps {
   title?: string;
@@ -29,6 +31,10 @@ export default function Header({ title, subtitle, showClubInfo = false }: Header
   const [searchQuery, setSearchQuery] = useState("");
   const [club, setClub] = useState<ClubData | null>(null);
   const router = useRouter();
+
+  // Get transfer window for club's league
+  const league = club?.club_context?.identity?.league || "";
+  const { window: transferWindow } = useActiveTransferWindow(league);
 
   // Fetch club data
   useEffect(() => {
@@ -102,6 +108,13 @@ export default function Header({ title, subtitle, showClubInfo = false }: Header
 
         {/* Right: Actions */}
         <div className="flex items-center gap-4">
+          {/* Transfer Window Badge */}
+          {showClubInfo && league && (
+            <div className="hidden lg:block">
+              <TransferWindowBadge window={transferWindow} compact />
+            </div>
+          )}
+
           {/* Club Info */}
           {showClubInfo && club && (
             <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
