@@ -19,11 +19,13 @@ export interface PositionNeed {
 interface PositionTargetsSectionProps {
   positionNeeds: PositionNeed[];
   onAddToShortlist?: (playerId: number) => void;
+  showFitScore?: boolean; // Control whether to show fit scores (for gating)
 }
 
 export function PositionTargetsSection({
   positionNeeds,
   onAddToShortlist,
+  showFitScore = true,
 }: PositionTargetsSectionProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -116,6 +118,7 @@ export function PositionTargetsSection({
                     <PositionTargetCard
                       player={player}
                       onAddToShortlist={onAddToShortlist}
+                      showFitScore={showFitScore}
                     />
                   </div>
                 ))}

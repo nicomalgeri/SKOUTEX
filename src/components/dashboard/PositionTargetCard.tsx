@@ -25,12 +25,14 @@ interface PositionTargetCardProps {
   player: PlayerRecommendation;
   onAddToShortlist?: (playerId: number) => void;
   className?: string;
+  showFitScore?: boolean; // Control whether to show fit score (for gating)
 }
 
 export function PositionTargetCard({
   player,
   onAddToShortlist,
   className = "",
+  showFitScore = true,
 }: PositionTargetCardProps) {
   const [isAdded, setIsAdded] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -78,20 +80,26 @@ export function PositionTargetCard({
           <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
             {player.position}
           </span>
-          <div
-            className={`
-            px-2 py-1 rounded-full text-xs font-semibold
-            ${
-              player.fitScore >= 80
-                ? "bg-green-50 text-green-600"
-                : player.fitScore >= 70
-                  ? "bg-blue-50 text-blue-600"
-                  : "bg-gray-100 text-gray-600"
-            }
-          `}
-          >
-            Fit {player.fitScore}
-          </div>
+          {showFitScore ? (
+            <div
+              className={`
+              px-2 py-1 rounded-full text-xs font-semibold
+              ${
+                player.fitScore >= 80
+                  ? "bg-green-50 text-green-600"
+                  : player.fitScore >= 70
+                    ? "bg-blue-50 text-blue-600"
+                    : "bg-gray-100 text-gray-600"
+              }
+            `}
+            >
+              Fit {player.fitScore}
+            </div>
+          ) : (
+            <div className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
+              Complete profile
+            </div>
+          )}
         </div>
 
         {/* Player Info */}
@@ -108,20 +116,22 @@ export function PositionTargetCard({
         </div>
 
         {/* Verdict */}
-        <div className="flex items-center gap-2 mb-4">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              player.fitScore >= 85
-                ? "bg-green-600"
-                : player.fitScore >= 75
-                  ? "bg-blue-600"
-                  : player.fitScore >= 65
-                    ? "bg-indigo-600"
-                    : "bg-amber-600"
-            }`}
-          />
-          <span className={`text-sm font-medium ${verdict.color}`}>{verdict.text}</span>
-        </div>
+        {showFitScore && (
+          <div className="flex items-center gap-2 mb-4">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                player.fitScore >= 85
+                  ? "bg-green-600"
+                  : player.fitScore >= 75
+                    ? "bg-blue-600"
+                    : player.fitScore >= 65
+                      ? "bg-indigo-600"
+                      : "bg-amber-600"
+              }`}
+            />
+            <span className={`text-sm font-medium ${verdict.color}`}>{verdict.text}</span>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-2">

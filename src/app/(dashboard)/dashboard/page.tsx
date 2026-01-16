@@ -9,14 +9,33 @@ import Header from "@/components/dashboard/Header";
 import { PositionTargetsSection, type PositionNeed } from "@/components/dashboard/PositionTargetsSection";
 import { RecentTransfersSection, type Transfer } from "@/components/dashboard/RecentTransfersSection";
 import { AIScoutAssistant } from "@/components/dashboard/AIScoutAssistant";
+import FitScoreGateNotice from "@/components/FitScoreGateNotice";
 import { TrendingUp, Users, Search, Star, Loader2 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFeaturedPlayers, useLatestTransfers } from "@/lib/hooks";
 import type { SportmonksPlayer, SportmonksTransfer } from "@/lib/sportmonks/types";
+import type { FitScoreGateResult } from "@/lib/club-context/fitScoreGate";
 import { calculateAge, getCurrentTeam, parseLocalISODate, getRelativeTime, formatCurrency } from "@/lib/utils";
 
 export default function DashboardPage() {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [fitScoreGate, setFitScoreGate] = useState<FitScoreGateResult | null>(null);
+
+  // Fetch fit score gate status
+  useEffect(() => {
+    const fetchFitScoreGate = async () => {
+      try {
+        const response = await fetch("/api/club/context/validate");
+        if (response.ok) {
+          const data = await response.json();
+          setFitScoreGate(data.gate);
+        }
+      } catch (error) {
+        console.error("Failed to fetch fit score gate:", error);
+      }
+    };
+    fetchFitScoreGate();
+  }, []);
 
   // Fetch featured players matching club's recruitment needs
   const {
@@ -151,6 +170,11 @@ export default function DashboardPage() {
       <Header title="Dashboard" subtitle="Welcome back to SKOUTEX" showClubInfo />
 
       <div className="p-3 sm:p-6 lg:p-12 space-y-8 sm:space-y-12 w-full max-w-[100vw] lg:max-w-[1440px] mx-auto overflow-hidden">
+        {/* Fit Score Gate Notification */}
+        {fitScoreGate && !fitScoreGate.unlocked && (
+          <FitScoreGateNotice gate={fitScoreGate} variant="compact" />
+        )}
+
         {/* Hero Stats Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <StatCard
@@ -188,6 +212,7 @@ export default function DashboardPage() {
           <PositionTargetsSection
             positionNeeds={positionNeeds}
             onAddToShortlist={handleAddToShortlist}
+            showFitScore={fitScoreGate?.unlocked ?? true}
           />
         ) : playersLoading ? (
           <div className="bg-white rounded-xl p-12 text-center">
