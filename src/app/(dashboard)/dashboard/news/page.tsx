@@ -351,10 +351,21 @@ function NewsCard({ article }: { article: Article }) {
             src={article.image}
             alt={article.title}
             fill
+            unoptimized
             className="object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              // Hide image on error and show placeholder
+              e.currentTarget.style.display = 'none';
+            }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
+            <Newspaper className="w-12 h-12 text-gray-300" />
+          </div>
+        )}
+        {/* Fallback placeholder (shown if image fails to load) */}
+        {article.image && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <Newspaper className="w-12 h-12 text-gray-300" />
           </div>
         )}

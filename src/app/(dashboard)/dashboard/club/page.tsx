@@ -62,7 +62,6 @@ const stepRequiredFields: Record<StepId, string[]> = {
   ],
   finances: [
     "finances.transfer_budget_eur",
-    "finances.wage_budget_weekly_eur",
     "finances.currency",
   ],
   playing_style: [
@@ -141,10 +140,7 @@ function isValuePresent(path: string, value: unknown) {
   if (typeof value === "string") return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === "number") {
-    if (
-      path === "finances.transfer_budget_eur" ||
-      path === "finances.wage_budget_weekly_eur"
-    ) {
+    if (path === "finances.transfer_budget_eur") {
       return value > 0;
     }
     return true;

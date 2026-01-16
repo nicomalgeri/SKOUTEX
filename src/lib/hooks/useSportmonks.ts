@@ -340,3 +340,10 @@ export function useSportsHeadlines(options?: { lang?: string; country?: string; 
     max: options?.max,
   });
 }
+
+// Featured players hook - matches club recruitment needs
+export function useFeaturedPlayers() {
+  return useApiData<SportmonksResponse<SportmonksPlayer>>('/api/club/featured-players', {
+    enabled: true,
+  });
+}

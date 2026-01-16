@@ -15,18 +15,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePlayerSearch, useLatestTransfers, useSportsHeadlines } from "@/lib/hooks";
+import { useLatestTransfers, useSportsHeadlines, useFeaturedPlayers } from "@/lib/hooks";
 import { formatCurrency, getPositionColor, getPositionCode, calculateAge, getRelativeTime, getCurrentTeam, parseLocalISODate } from "@/lib/utils";
 import type { SportmonksPlayer, SportmonksTransfer } from "@/lib/sportmonks/types";
 
 export default function DashboardPage() {
-  // Fetch featured players (Premier League players as example)
+  // Fetch featured players matching club's recruitment needs
   const {
     data: playersData,
     loading: playersLoading,
     error: playersError,
     refetch: refetchPlayers,
-  } = usePlayerSearch("Premier League", "position;nationality;teams.team");
+  } = useFeaturedPlayers();
 
   // Fetch latest transfers
   const {
@@ -137,7 +137,7 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 rounded-xl sm:rounded-2xl p-4 sm:p-6 bg-white border border-gray-200">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
               <h2 className="text-base sm:text-lg font-semibold text-[#2C2C2C]">
-                Featured Players
+                Players Matching Your Needs
               </h2>
               <Link
                 href="/dashboard/search"
