@@ -1,5 +1,5 @@
 /**
- * Premium Dashboard Page
+ * Main Dashboard Page
  * Enhanced dashboard with position targets, radar charts, and AI assistant
  */
 
@@ -9,192 +9,142 @@ import Header from "@/components/dashboard/Header";
 import { PositionTargetsSection, type PositionNeed } from "@/components/dashboard/PositionTargetsSection";
 import { RecentTransfersSection, type Transfer } from "@/components/dashboard/RecentTransfersSection";
 import { AIScoutAssistant } from "@/components/dashboard/AIScoutAssistant";
-import { TrendingUp, Users, Search, Star } from "lucide-react";
-import { useState } from "react";
+import { TrendingUp, Users, Search, Star, Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { useFeaturedPlayers, useLatestTransfers } from "@/lib/hooks";
+import type { SportmonksPlayer, SportmonksTransfer } from "@/lib/sportmonks/types";
+import { calculateAge, getCurrentTeam, parseLocalISODate, getRelativeTime, formatCurrency } from "@/lib/utils";
 
-// Mock data for demonstration
-const mockPositionNeeds: PositionNeed[] = [
-  {
-    position: "CB",
-    fullName: "Centre Back",
-    priority: "high",
-    recommendations: [
-      {
-        id: 1,
-        name: "Antonio Silva",
-        club: "Benfica",
-        age: 21,
-        position: "CB",
-        fitScore: 89,
-      },
-      {
-        id: 2,
-        name: "Leny Yoro",
-        club: "Lille",
-        age: 19,
-        position: "CB",
-        fitScore: 85,
-      },
-    ],
-  },
-  {
-    position: "RW",
-    fullName: "Right Winger",
-    priority: "medium",
-    recommendations: [
-      {
-        id: 3,
-        name: "Mohamed Kudus",
-        club: "West Ham",
-        age: 24,
-        position: "RW",
-        fitScore: 82,
-      },
-      {
-        id: 4,
-        name: "Desiré Doué",
-        club: "Rennes",
-        age: 19,
-        position: "RW",
-        fitScore: 78,
-      },
-    ],
-  },
-  {
-    position: "CM",
-    fullName: "Central Midfielder",
-    priority: "low",
-    recommendations: [
-      {
-        id: 5,
-        name: "Joao Neves",
-        club: "Benfica",
-        age: 20,
-        position: "CM",
-        fitScore: 86,
-      },
-      {
-        id: 6,
-        name: "Warren Zaïre-Emery",
-        club: "PSG",
-        age: 18,
-        position: "CM",
-        fitScore: 83,
-      },
-    ],
-  },
-];
+export default function DashboardPage() {
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
 
-const mockTransfers: Transfer[] = [
-  {
-    id: "1",
-    playerName: "João Neves",
-    fromClub: "Benfica",
-    toClub: "PSG",
-    fee: 60000000,
-    feeDisplay: "£60M",
-    position: "CM",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    timeAgo: "2h ago",
-    playerId: 5,
-  },
-  {
-    id: "2",
-    playerName: "Leny Yoro",
-    fromClub: "Lille",
-    toClub: "Real Madrid",
-    fee: 62000000,
-    feeDisplay: "£62M",
-    position: "CB",
-    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    timeAgo: "5h ago",
-    playerId: 2,
-  },
-  {
-    id: "3",
-    playerName: "Antonio Silva",
-    fromClub: "Benfica",
-    toClub: "Manchester United",
-    fee: 42500000,
-    feeDisplay: "£42.5M",
-    position: "CB",
-    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-    timeAgo: "12h ago",
-    playerId: 1,
-  },
-  {
-    id: "4",
-    playerName: "Desiré Doué",
-    fromClub: "Rennes",
-    toClub: "Bayern Munich",
-    fee: 35000000,
-    feeDisplay: "£35M",
-    position: "RW",
-    timestamp: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
-    timeAgo: "18h ago",
-    playerId: 4,
-  },
-  {
-    id: "5",
-    playerName: "Mohamed Kudus",
-    fromClub: "Ajax",
-    toClub: "West Ham",
-    fee: 38000000,
-    feeDisplay: "£38M",
-    position: "RW",
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    timeAgo: "1d ago",
-    playerId: 3,
-  },
-  {
-    id: "6",
-    playerName: "Jurrien Timber",
-    fromClub: "Ajax",
-    toClub: "Arsenal",
-    fee: 40000000,
-    feeDisplay: "£40M",
-    position: "CB",
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    timeAgo: "2d ago",
-  },
-  {
-    id: "7",
-    playerName: "Rasmus Højlund",
-    fromClub: "Atalanta",
-    toClub: "Manchester United",
-    fee: 72000000,
-    feeDisplay: "£72M",
-    position: "ST",
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    timeAgo: "3d ago",
-  },
-  {
-    id: "8",
-    playerName: "Declan Rice",
-    fromClub: "West Ham",
-    toClub: "Arsenal",
-    fee: 105000000,
-    feeDisplay: "£105M",
-    position: "CM",
-    timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    timeAgo: "4d ago",
-  },
-];
+  // Fetch featured players matching club's recruitment needs
+  const {
+    data: playersData,
+    loading: playersLoading,
+    error: playersError,
+  } = useFeaturedPlayers();
 
-export default function PremiumDashboardPage() {
-  const [transfers, setTransfers] = useState(mockTransfers);
+  // Fetch latest transfers
+  const {
+    data: transfersData,
+    loading: transfersLoading,
+    error: transfersError,
+  } = useLatestTransfers("player;fromTeam;toTeam");
 
-  const handleAddToShortlist = (playerId: number) => {
+  // Convert Sportmonks players to position needs format
+  const positionNeeds: PositionNeed[] = useMemo(() => {
+    if (!playersData?.data || playersLoading) return [];
+
+    const players = playersData.data;
+
+    // Group players by position
+    const positionGroups: Record<string, SportmonksPlayer[]> = {};
+
+    players.forEach((player) => {
+      const position = player.position?.code || "CM";
+      if (!positionGroups[position]) {
+        positionGroups[position] = [];
+      }
+      positionGroups[position].push(player);
+    });
+
+    // Create position needs (max 3 positions, 2 players each)
+    return Object.entries(positionGroups)
+      .slice(0, 3)
+      .map(([posCode, posPlayers]) => {
+        const topTwo = posPlayers.slice(0, 2);
+
+        return {
+          position: posCode,
+          fullName: topTwo[0]?.position?.name || posCode,
+          priority: "high" as const,
+          recommendations: topTwo.map((player) => {
+            const age = calculateAge(player.date_of_birth);
+            const currentTeam = getCurrentTeam(player);
+
+            return {
+              id: player.id,
+              name: player.display_name || player.common_name || player.name,
+              club: currentTeam?.name || "Free Agent",
+              age: age || 25,
+              position: posCode,
+              fitScore: Math.floor(Math.random() * 15) + 75, // TODO: Calculate real fit score
+              imageUrl: player.image_path,
+            };
+          }) as [any, any],
+        };
+      });
+  }, [playersData, playersLoading]);
+
+  // Convert Sportmonks transfers to Transfer format
+  useEffect(() => {
+    if (!transfersData?.data || transfersLoading) return;
+
+    const now = new Date();
+    const recentCutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+
+    const formattedTransfers: Transfer[] = transfersData.data
+      .filter((transfer: SportmonksTransfer) => {
+        const transferDate = parseLocalISODate(transfer.date);
+        return transferDate && transferDate >= recentCutoff;
+      })
+      .sort((a: SportmonksTransfer, b: SportmonksTransfer) => {
+        const aDate = parseLocalISODate(a.date)?.getTime() ?? 0;
+        const bDate = parseLocalISODate(b.date)?.getTime() ?? 0;
+        return bDate - aDate;
+      })
+      .slice(0, 8)
+      .map((transfer: SportmonksTransfer) => ({
+        id: transfer.id.toString(),
+        playerName: transfer.player?.display_name || transfer.player?.name || "Unknown Player",
+        fromClub: transfer.fromTeam?.name || transfer.fromteam?.name || "Unknown",
+        toClub: transfer.toTeam?.name || transfer.toteam?.name || "Unknown",
+        fee: transfer.amount || 0,
+        feeDisplay: transfer.amount ? formatCurrency(transfer.amount) : "Free",
+        position: transfer.player?.position?.code || "?",
+        timestamp: transfer.date,
+        timeAgo: getRelativeTime(transfer.date),
+        playerId: transfer.player_id,
+      }));
+
+    setTransfers(formattedTransfers);
+  }, [transfersData, transfersLoading]);
+
+  const handleAddToShortlist = async (playerId: number) => {
     console.log("Added player to shortlist:", playerId);
     // TODO: Implement actual shortlist functionality
+    try {
+      await fetch("/api/watchlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player_id: playerId }),
+      });
+    } catch (error) {
+      console.error("Failed to add to shortlist:", error);
+    }
   };
 
   const handleTransferFilterChange = (filters: any) => {
     console.log("Transfer filters changed:", filters);
-    // TODO: Implement actual filtering
-    // For now, just use mock data
-    setTransfers(mockTransfers);
+    // TODO: Implement actual filtering with API call
+    // For now, filters work on the client side in RecentTransfersSection
   };
+
+  // Loading state
+  if (playersLoading && transfersLoading) {
+    return (
+      <>
+        <Header title="Dashboard" subtitle="Welcome back to SKOUTEX" showClubInfo />
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading dashboard...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -213,7 +163,7 @@ export default function PremiumDashboardPage() {
           <StatCard
             icon={<Users className="w-5 h-5" />}
             label="Players Analyzed"
-            value="156"
+            value={playersData?.data?.length.toString() || "0"}
             change="+8%"
             changeType="positive"
           />
@@ -234,23 +184,49 @@ export default function PremiumDashboardPage() {
         </div>
 
         {/* Position Targets Section */}
-        <PositionTargetsSection
-          positionNeeds={mockPositionNeeds}
-          onAddToShortlist={handleAddToShortlist}
-        />
+        {positionNeeds.length > 0 ? (
+          <PositionTargetsSection
+            positionNeeds={positionNeeds}
+            onAddToShortlist={handleAddToShortlist}
+          />
+        ) : playersLoading ? (
+          <div className="bg-white rounded-xl p-12 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
+            <p className="text-gray-600">Loading player recommendations...</p>
+          </div>
+        ) : (
+          <div className="bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 p-12 text-center">
+            <p className="text-gray-600 mb-2">No player recommendations available</p>
+            <p className="text-sm text-gray-500">
+              Complete your club profile to get personalized recommendations
+            </p>
+          </div>
+        )}
 
         {/* Recent Transfers Section */}
-        <RecentTransfersSection
-          transfers={transfers}
-          availableLeagues={["Premier League", "La Liga", "Serie A", "Bundesliga", "Ligue 1"]}
-          availablePositions={["GK", "CB", "FB", "CM", "W", "ST"]}
-          defaultFilters={{
-            leagues: ["Premier League"],
-            positions: [],
-            targetRelatedOnly: false,
-          }}
-          onFilterChange={handleTransferFilterChange}
-        />
+        {transfersLoading ? (
+          <div className="bg-white rounded-xl p-12 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
+            <p className="text-gray-600">Loading recent transfers...</p>
+          </div>
+        ) : transfersError ? (
+          <div className="bg-red-50 rounded-xl border border-red-200 p-8 text-center">
+            <p className="text-red-600">Failed to load transfers</p>
+            <p className="text-sm text-red-500 mt-1">Please try again later</p>
+          </div>
+        ) : (
+          <RecentTransfersSection
+            transfers={transfers}
+            availableLeagues={["Premier League", "La Liga", "Serie A", "Bundesliga", "Ligue 1"]}
+            availablePositions={["GK", "CB", "FB", "CM", "W", "ST"]}
+            defaultFilters={{
+              leagues: [],
+              positions: [],
+              targetRelatedOnly: false,
+            }}
+            onFilterChange={handleTransferFilterChange}
+          />
+        )}
 
         {/* AI Scout Assistant */}
         <AIScoutAssistant />
