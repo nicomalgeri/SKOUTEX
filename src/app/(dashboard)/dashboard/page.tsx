@@ -1,424 +1,296 @@
+/**
+ * Premium Dashboard Page
+ * Enhanced dashboard with position targets, radar charts, and AI assistant
+ */
+
 "use client";
 
 import Header from "@/components/dashboard/Header";
-import {
-  TrendingUp,
-  Users,
-  Search,
-  Star,
-  ArrowRight,
-  MessageSquare,
-  Sparkles,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
-import Link from "next/link";
-import Image from "next/image";
-import { useLatestTransfers, useSportsHeadlines, useFeaturedPlayers } from "@/lib/hooks";
-import { formatCurrency, getPositionColor, getPositionCode, calculateAge, getRelativeTime, getCurrentTeam, parseLocalISODate } from "@/lib/utils";
-import type { SportmonksPlayer, SportmonksTransfer } from "@/lib/sportmonks/types";
+import { PositionTargetsSection, type PositionNeed } from "@/components/dashboard/PositionTargetsSection";
+import { RecentTransfersSection, type Transfer } from "@/components/dashboard/RecentTransfersSection";
+import { AIScoutAssistant } from "@/components/dashboard/AIScoutAssistant";
+import { TrendingUp, Users, Search, Star } from "lucide-react";
+import { useState } from "react";
 
-export default function DashboardPage() {
-  // Fetch featured players matching club's recruitment needs
-  const {
-    data: playersData,
-    loading: playersLoading,
-    error: playersError,
-    refetch: refetchPlayers,
-  } = useFeaturedPlayers();
+// Mock data for demonstration
+const mockPositionNeeds: PositionNeed[] = [
+  {
+    position: "CB",
+    fullName: "Centre Back",
+    priority: "high",
+    recommendations: [
+      {
+        id: 1,
+        name: "Antonio Silva",
+        club: "Benfica",
+        age: 21,
+        position: "CB",
+        fitScore: 89,
+      },
+      {
+        id: 2,
+        name: "Leny Yoro",
+        club: "Lille",
+        age: 19,
+        position: "CB",
+        fitScore: 85,
+      },
+    ],
+  },
+  {
+    position: "RW",
+    fullName: "Right Winger",
+    priority: "medium",
+    recommendations: [
+      {
+        id: 3,
+        name: "Mohamed Kudus",
+        club: "West Ham",
+        age: 24,
+        position: "RW",
+        fitScore: 82,
+      },
+      {
+        id: 4,
+        name: "Desiré Doué",
+        club: "Rennes",
+        age: 19,
+        position: "RW",
+        fitScore: 78,
+      },
+    ],
+  },
+  {
+    position: "CM",
+    fullName: "Central Midfielder",
+    priority: "low",
+    recommendations: [
+      {
+        id: 5,
+        name: "Joao Neves",
+        club: "Benfica",
+        age: 20,
+        position: "CM",
+        fitScore: 86,
+      },
+      {
+        id: 6,
+        name: "Warren Zaïre-Emery",
+        club: "PSG",
+        age: 18,
+        position: "CM",
+        fitScore: 83,
+      },
+    ],
+  },
+];
 
-  // Fetch latest transfers
-  const {
-    data: transfersData,
-    loading: transfersLoading,
-    error: transfersError,
-    refetch: refetchTransfers,
-  } = useLatestTransfers("player;fromTeam;toTeam");
+const mockTransfers: Transfer[] = [
+  {
+    id: "1",
+    playerName: "João Neves",
+    fromClub: "Benfica",
+    toClub: "PSG",
+    fee: 60000000,
+    feeDisplay: "£60M",
+    position: "CM",
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    timeAgo: "2h ago",
+    playerId: 5,
+  },
+  {
+    id: "2",
+    playerName: "Leny Yoro",
+    fromClub: "Lille",
+    toClub: "Real Madrid",
+    fee: 62000000,
+    feeDisplay: "£62M",
+    position: "CB",
+    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    timeAgo: "5h ago",
+    playerId: 2,
+  },
+  {
+    id: "3",
+    playerName: "Antonio Silva",
+    fromClub: "Benfica",
+    toClub: "Manchester United",
+    fee: 42500000,
+    feeDisplay: "£42.5M",
+    position: "CB",
+    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    timeAgo: "12h ago",
+    playerId: 1,
+  },
+  {
+    id: "4",
+    playerName: "Desiré Doué",
+    fromClub: "Rennes",
+    toClub: "Bayern Munich",
+    fee: 35000000,
+    feeDisplay: "£35M",
+    position: "RW",
+    timestamp: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
+    timeAgo: "18h ago",
+    playerId: 4,
+  },
+  {
+    id: "5",
+    playerName: "Mohamed Kudus",
+    fromClub: "Ajax",
+    toClub: "West Ham",
+    fee: 38000000,
+    feeDisplay: "£38M",
+    position: "RW",
+    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    timeAgo: "1d ago",
+    playerId: 3,
+  },
+  {
+    id: "6",
+    playerName: "Jurrien Timber",
+    fromClub: "Ajax",
+    toClub: "Arsenal",
+    fee: 40000000,
+    feeDisplay: "£40M",
+    position: "CB",
+    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    timeAgo: "2d ago",
+  },
+  {
+    id: "7",
+    playerName: "Rasmus Højlund",
+    fromClub: "Atalanta",
+    toClub: "Manchester United",
+    fee: 72000000,
+    feeDisplay: "£72M",
+    position: "ST",
+    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    timeAgo: "3d ago",
+  },
+  {
+    id: "8",
+    playerName: "Declan Rice",
+    fromClub: "West Ham",
+    toClub: "Arsenal",
+    fee: 105000000,
+    feeDisplay: "£105M",
+    position: "CM",
+    timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    timeAgo: "4d ago",
+  },
+];
 
-  // Get featured players (top 5)
-  const featuredPlayers = playersData?.data?.slice(0, 5) || [];
+export default function PremiumDashboardPage() {
+  const [transfers, setTransfers] = useState(mockTransfers);
 
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const recentCutoff = new Date(todayStart);
-  recentCutoff.setDate(recentCutoff.getDate() - 30);
+  const handleAddToShortlist = (playerId: number) => {
+    console.log("Added player to shortlist:", playerId);
+    // TODO: Implement actual shortlist functionality
+  };
 
-  // Get recent transfers (top 4, last 30 days only)
-  const recentTransfers =
-    transfersData?.data
-      ?.filter((transfer) => {
-        const transferDate = parseLocalISODate(transfer.date);
-        return (
-          !!transferDate &&
-          transferDate >= recentCutoff &&
-          transferDate <= todayStart
-        );
-      })
-      .sort((a, b) => {
-        const aDate = parseLocalISODate(a.date)?.getTime() ?? 0;
-        const bDate = parseLocalISODate(b.date)?.getTime() ?? 0;
-        return bDate - aDate;
-      })
-      .slice(0, 4) || [];
+  const handleTransferFilterChange = (filters: any) => {
+    console.log("Transfer filters changed:", filters);
+    // TODO: Implement actual filtering
+    // For now, just use mock data
+    setTransfers(mockTransfers);
+  };
 
   return (
     <>
       <Header title="Dashboard" subtitle="Welcome back to SKOUTEX" showClubInfo />
 
-      <div className="p-3 sm:p-4 lg:p-6 space-y-6 sm:space-y-8 w-full max-w-[100vw] lg:max-w-none overflow-hidden">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="p-3 sm:p-6 lg:p-12 space-y-8 sm:space-y-12 w-full max-w-[100vw] lg:max-w-[1440px] mx-auto overflow-hidden">
+        {/* Hero Stats Bar */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <StatCard
-            icon={<Search className="w-4 h-4 sm:w-5 sm:h-5" />}
+            icon={<Search className="w-5 h-5" />}
             label="Searches Today"
-            value="0"
+            value="24"
+            change="+12%"
+            changeType="positive"
           />
           <StatCard
-            icon={<Users className="w-4 h-4 sm:w-5 sm:h-5" />}
+            icon={<Users className="w-5 h-5" />}
             label="Players Analyzed"
-            value="0"
+            value="156"
+            change="+8%"
+            changeType="positive"
           />
           <StatCard
-            icon={<Star className="w-4 h-4 sm:w-5 sm:h-5" />}
+            icon={<Star className="w-5 h-5" />}
             label="Watchlist"
-            value="0"
+            value="32"
+            change="+4"
+            changeType="positive"
           />
           <StatCard
-            icon={<TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />}
+            icon={<TrendingUp className="w-5 h-5" />}
             label="Avg Fit Score"
-            value="—"
+            value="82"
+            change="+3%"
+            changeType="positive"
           />
         </div>
 
-        {/* AI Assistant Quick Access */}
-        <Link href="/dashboard/chat">
-          <div className="bg-gradient-to-r from-[#0031FF]/20 to-[#0050FF]/10 border border-[#0031FF]/30 rounded-xl sm:rounded-2xl p-4 sm:p-6 hover:border-[#0031FF]/50 transition-all cursor-pointer group">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#0031FF] rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-base sm:text-lg font-semibold truncate text-[#2C2C2C]">
-                    AI Scout Assistant
-                  </h3>
-                  <p className="text-xs sm:text-sm truncate text-gray-600">
-                    Ask anything about players, tactics, or market insights
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-[#0031FF] group-hover:gap-3 transition-all flex-shrink-0">
-                <span className="hidden sm:block text-sm">Start chat</span>
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-            </div>
+        {/* Position Targets Section */}
+        <PositionTargetsSection
+          positionNeeds={mockPositionNeeds}
+          onAddToShortlist={handleAddToShortlist}
+        />
 
-            {/* Quick prompts */}
-            <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-3 sm:mt-4">
-              {[
-                "Find a right winger under 25",
-                "Compare top CDM targets",
-                "Market value analysis",
-              ].map((prompt) => (
-                <span
-                  key={prompt}
-                  className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs bg-white/50 border border-gray-200 text-gray-600"
-                >
-                  {prompt}
-                </span>
-              ))}
-            </div>
-          </div>
-        </Link>
+        {/* Recent Transfers Section */}
+        <RecentTransfersSection
+          transfers={transfers}
+          availableLeagues={["Premier League", "La Liga", "Serie A", "Bundesliga", "Ligue 1"]}
+          availablePositions={["GK", "CB", "FB", "CM", "W", "ST"]}
+          defaultFilters={{
+            leagues: ["Premier League"],
+            positions: [],
+            targetRelatedOnly: false,
+          }}
+          onFilterChange={handleTransferFilterChange}
+        />
 
-        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Featured Players */}
-          <div className="lg:col-span-2 rounded-xl sm:rounded-2xl p-4 sm:p-6 bg-white border border-gray-200">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="text-base sm:text-lg font-semibold text-[#2C2C2C]">
-                Players Matching Your Needs
-              </h2>
-              <Link
-                href="/dashboard/search"
-                className="text-xs sm:text-sm text-[#0031FF] hover:text-[#0050FF] flex items-center gap-1"
-              >
-                View all <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
-              </Link>
-            </div>
-
-            {/* Loading State */}
-            {playersLoading && (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                <Loader2 className="w-8 h-8 animate-spin mb-3" />
-                <p className="text-sm">Loading players...</p>
-              </div>
-            )}
-
-            {/* Error State */}
-            {playersError && !playersLoading && (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                <AlertCircle className="w-8 h-8 mb-3 text-red-500" />
-                <p className="text-sm text-red-600 mb-3">Failed to load players</p>
-                <button
-                  onClick={() => refetchPlayers()}
-                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Retry
-                </button>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {!playersLoading && !playersError && featuredPlayers.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                <Users className="w-8 h-8 mb-3" />
-                <p className="text-sm">No players found</p>
-              </div>
-            )}
-
-            {/* Players List */}
-            {!playersLoading && !playersError && featuredPlayers.length > 0 && (
-              <div className="space-y-2 sm:space-y-3">
-                {featuredPlayers.map((player: SportmonksPlayer, index: number) => {
-                  const age = calculateAge(player.date_of_birth);
-                  const position = player.position?.name || player.position?.code;
-                  const positionCode = getPositionCode(position);
-                  const currentTeam = getCurrentTeam(player);
-
-                  return (
-                    <Link
-                      key={player.id}
-                      href={`/dashboard/players/${player.id}`}
-                      className="flex items-center gap-2 sm:gap-4 p-2.5 sm:p-3 rounded-xl transition-all group bg-[#f6f6f6] hover:bg-gray-100"
-                    >
-                      <span className="w-5 sm:w-6 text-center text-gray-500 font-medium text-sm">
-                        {index + 1}
-                      </span>
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gray-200 overflow-hidden">
-                        {player.image_path ? (
-                          <Image
-                            src={player.image_path}
-                            alt={player.display_name || player.name}
-                            width={40}
-                            height={40}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-sm sm:text-base font-semibold text-[#2C2C2C]">
-                            {(player.display_name || player.name || "?")[0]}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm sm:text-base font-medium truncate group-hover:text-[#0031FF] transition-colors text-[#2C2C2C]">
-                          {player.display_name || player.common_name || player.name}
-                        </p>
-                        <p className="text-xs sm:text-sm truncate text-gray-500">
-                          {currentTeam?.name || "Free Agent"} {age ? `· ${age}y` : ""}
-                        </p>
-                      </div>
-                      {position && (
-                        <span
-                          className={`hidden sm:inline-block px-2 py-1 rounded text-xs font-medium ${getPositionColor(
-                            positionCode
-                          )} text-white`}
-                        >
-                          {positionCode}
-                        </span>
-                      )}
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-xs sm:text-sm font-medium text-gray-600">
-                          {player.nationality?.name || "Unknown"}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">
-                          {player.height ? `${player.height} cm` : ""}
-                        </p>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Quick Actions */}
-          <div className="space-y-3 sm:space-y-4">
-            {/* Recent Transfers */}
-            <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6 bg-white border border-gray-200">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h2 className="text-base sm:text-lg font-semibold text-[#2C2C2C]">
-                  Recent Transfers
-                </h2>
-                {transfersError && !transfersLoading && (
-                  <button
-                    onClick={() => refetchTransfers()}
-                    className="text-gray-400 hover:text-gray-600"
-                    title="Retry"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Loading State */}
-              {transfersLoading && (
-                <div className="flex items-center justify-center py-8 text-gray-500">
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                </div>
-              )}
-
-              {/* Error State */}
-              {transfersError && !transfersLoading && (
-                <div className="flex flex-col items-center justify-center py-6 text-gray-500">
-                  <AlertCircle className="w-6 h-6 mb-2 text-red-400" />
-                  <p className="text-xs text-gray-400">Failed to load transfers</p>
-                </div>
-              )}
-
-              {/* Empty State */}
-              {!transfersLoading && !transfersError && recentTransfers.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-6 text-gray-500">
-                  <TrendingUp className="w-6 h-6 mb-2" />
-                  <p className="text-xs">No recent transfers</p>
-                </div>
-              )}
-
-              {/* Transfers List */}
-              {!transfersLoading && !transfersError && recentTransfers.length > 0 && (
-                <div className="space-y-2 sm:space-y-3">
-                  {recentTransfers.map((transfer: SportmonksTransfer) => (
-                    <Link
-                      key={transfer.id}
-                      href={`/dashboard/players/${transfer.player_id}`}
-                      className="flex items-center gap-2 sm:gap-3 p-2 rounded-lg transition-all hover:bg-gray-100"
-                    >
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gray-200 overflow-hidden">
-                        {transfer.player?.image_path ? (
-                          <Image
-                            src={transfer.player.image_path}
-                            alt={transfer.player.display_name || transfer.player.name || "Player"}
-                            width={32}
-                            height={32}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-xs sm:text-sm font-medium text-[#2C2C2C]">
-                            {(transfer.player?.display_name || transfer.player?.name || "?")[0]}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm font-medium truncate text-[#2C2C2C]">
-                          {transfer.player?.display_name || transfer.player?.common_name || transfer.player?.name || "Unknown Player"}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-gray-500 truncate">
-                          {(transfer.fromTeam?.name ||
-                            transfer.fromteam?.name ||
-                            transfer.from_team?.name ||
-                            "Unknown")}{" "}
-                          →{" "}
-                          {(transfer.toTeam?.name ||
-                            transfer.toteam?.name ||
-                            transfer.to_team?.name ||
-                            "Unknown")}
-                        </p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <span className="text-xs sm:text-sm text-green-600 font-medium">
-                          {transfer.amount ? formatCurrency(transfer.amount) : "Free"}
-                        </span>
-                        <p className="text-[10px] text-gray-400">
-                          {transfer.date ? getRelativeTime(transfer.date) : ""}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Quick Actions */}
-            <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6 bg-white border border-gray-200">
-              <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-[#2C2C2C]">
-                Quick Actions
-              </h2>
-              <div className="space-y-1.5 sm:space-y-2">
-                <QuickAction
-                  href="/dashboard/chat"
-                  icon={<MessageSquare className="w-4 h-4" />}
-                  label="Ask AI Assistant"
-                />
-                <QuickAction
-                  href="/dashboard/search"
-                  icon={<Search className="w-4 h-4" />}
-                  label="Search Players"
-                />
-                <QuickAction
-                  href="/dashboard/compare"
-                  icon={<Users className="w-4 h-4" />}
-                  label="Compare Players"
-                />
-                <QuickAction
-                  href="/dashboard/watchlist"
-                  icon={<Star className="w-4 h-4" />}
-                  label="View Watchlist"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* AI Scout Assistant */}
+        <AIScoutAssistant />
       </div>
     </>
   );
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
+interface StatCardProps {
   icon: React.ReactNode;
   label: string;
   value: string;
-}) {
-  return (
-    <div className="rounded-2xl p-4 sm:p-5 bg-white border border-gray-200">
-      <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-[#0031FF] bg-[#f6f6f6]">
-          {icon}
-        </div>
-        <span className="text-xs sm:text-sm text-gray-500">{label}</span>
-      </div>
-      <div className="flex items-end justify-between">
-        <p className="text-xl sm:text-2xl font-bold text-[#2C2C2C]">{value}</p>
-      </div>
-    </div>
-  );
+  change?: string;
+  changeType?: "positive" | "negative" | "neutral";
 }
 
-function QuickAction({
-  href,
-  icon,
-  label,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-}) {
+function StatCard({ icon, label, value, change, changeType = "neutral" }: StatCardProps) {
+  const changeColorClass =
+    changeType === "positive"
+      ? "text-green-600"
+      : changeType === "negative"
+        ? "text-red-600"
+        : "text-gray-600";
+
   return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 p-2.5 sm:p-3 rounded-xl transition-all group bg-[#f6f6f6] hover:bg-gray-100"
-    >
-      <div className="group-hover:text-[#0031FF] transition-colors text-gray-500">
-        {icon}
+    <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6 bg-white border border-gray-300 hover:border-blue-600 hover:shadow-lg transition-all">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-blue-600 bg-blue-50">
+          {icon}
+        </div>
       </div>
-      <span className="text-sm transition-colors text-gray-600 group-hover:text-[#2C2C2C]">
-        {label}
-      </span>
-      <ArrowRight className="w-4 h-4 ml-auto transition-colors text-gray-400 group-hover:text-gray-500" />
-    </Link>
+      <div>
+        <span className="block text-sm text-gray-500 mb-1">{label}</span>
+        <div className="flex items-end justify-between">
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900">{value}</p>
+          {change && (
+            <span className={`text-sm font-medium ${changeColorClass}`}>{change}</span>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

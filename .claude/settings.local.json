@@ -18,7 +18,8 @@
       "Bash(/opt/homebrew/bin/node:*)",
       "Bash(Want young players 21-25 with potential for possession system.\"\n\nExtracts:\n- priority_positions: [\"CB\", \"ST\"]\n- age_preference: {min: 21, max: 25, ideal: 23}\n- transfer_budget_eur: 20000000\n- playing_style: {style: \"possession\"}\n- transfer_philosophy: \"young_potential\"\n\nThis is the key differentiator - no competitor has AI strategy extraction.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git reset:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(ls:*)"
     ]
   }
 }
