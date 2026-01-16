@@ -30,6 +30,8 @@ import {
 } from "@/lib/club/context";
 import { useClub, useClubSearch } from "@/lib/hooks/useSportmonks";
 import { ChevronLeft, ChevronRight, Loader2, Save, Search } from "lucide-react";
+import { formatNumber, parseFormattedNumber } from "@/lib/utils/formatters";
+import { PositionSelector } from "@/components/club/PositionSelector";
 
 type StepId =
   | "identity"
@@ -38,7 +40,6 @@ type StepId =
   | "squad"
   | "recruitment"
   | "technical"
-  | "contracts"
   | "strategy";
 
 const steps: { id: StepId; label: string; description: string }[] = [
@@ -48,8 +49,7 @@ const steps: { id: StepId; label: string; description: string }[] = [
   { id: "squad", label: "Step D", description: "Squad Profile" },
   { id: "recruitment", label: "Step E", description: "Recruitment Priorities" },
   { id: "technical", label: "Step F", description: "Technical Requirements" },
-  { id: "contracts", label: "Step G", description: "Contract Preferences" },
-  { id: "strategy", label: "Step H", description: "Strategic Goals" },
+  { id: "strategy", label: "Step G", description: "Strategic Goals" },
 ];
 
 const stepRequiredFields: Record<StepId, string[]> = {
@@ -82,12 +82,6 @@ const stepRequiredFields: Record<StepId, string[]> = {
     "recruitment.experience_level",
   ],
   technical: ["technical.physical_profile"],
-  contracts: [
-    "contracts.contract_length_preference.min_years",
-    "contracts.contract_length_preference.max_years",
-    "contracts.loan_interest",
-    "contracts.sell_on_clause_ok",
-  ],
   strategy: [
     "strategy.season_objective",
     "strategy.transfer_philosophy",
@@ -173,7 +167,6 @@ export default function ClubOnboardingPage() {
     squad: false,
     recruitment: false,
     technical: false,
-    contracts: false,
     strategy: false,
   });
 
@@ -352,7 +345,7 @@ export default function ClubOnboardingPage() {
 
   return (
     <>
-      <Header title="Club Onboarding" subtitle="Complete Steps A-H to power fit scoring" />
+      <Header title="Club Onboarding" subtitle="Complete Steps A-G to power fit scoring" />
 
       <div className="p-4 lg:p-6 space-y-6">
         <div className="flex flex-wrap gap-2">
@@ -584,11 +577,12 @@ export default function ClubOnboardingPage() {
                     Transfer Budget (EUR)
                   </label>
                   <input
-                    type="number"
-                    value={context.finances.transfer_budget_eur}
+                    type="text"
+                    value={formatNumber(context.finances.transfer_budget_eur)}
                     onChange={(e) =>
-                      updateField("finances.transfer_budget_eur", Number(e.target.value))
+                      updateField("finances.transfer_budget_eur", parseFormattedNumber(e.target.value))
                     }
+                    placeholder="10,000,000"
                     className="w-full px-4 py-3 bg-[#f6f6f6] border border-gray-200 rounded-xl text-[#2C2C2C] focus:outline-none focus:border-[#0031FF]"
                   />
                   {renderFieldError("finances.transfer_budget_eur")}
@@ -909,14 +903,11 @@ export default function ClubOnboardingPage() {
                   <label className="block text-sm font-medium text-gray-500 mb-2">
                     Priority Positions (max 5)
                   </label>
-                  <input
-                    type="text"
-                    value={context.recruitment.priority_positions.join(", ")}
-                    onChange={(e) =>
-                      updateArrayField("recruitment.priority_positions", e.target.value, 5)
-                    }
-                    placeholder="RB, CB, ST"
-                    className="w-full px-4 py-3 bg-[#f6f6f6] border border-gray-200 rounded-xl text-[#2C2C2C] focus:outline-none focus:border-[#0031FF]"
+                  <PositionSelector
+                    value={context.recruitment.priority_positions}
+                    onChange={(positions) => updateField("recruitment.priority_positions", positions)}
+                    maxSelections={5}
+                    placeholder="Select up to 5 positions"
                   />
                   {renderFieldError("recruitment.priority_positions")}
                 </div>
@@ -1157,122 +1148,6 @@ export default function ClubOnboardingPage() {
                       {INJURY_TOLERANCE_LEVELS.map((value) => (
                         <option key={value} value={value}>
                           {value}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {currentStep.id === "contracts" && (
-            <div className="space-y-6">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-2">
-                    Contract Length (Min Years)
-                  </label>
-                  <input
-                    type="number"
-                    value={context.contracts.contract_length_preference.min_years}
-                    onChange={(e) =>
-                      updateField(
-                        "contracts.contract_length_preference.min_years",
-                        Number(e.target.value)
-                      )
-                    }
-                    className="w-full px-4 py-3 bg-[#f6f6f6] border border-gray-200 rounded-xl text-[#2C2C2C] focus:outline-none focus:border-[#0031FF]"
-                  />
-                  {renderFieldError("contracts.contract_length_preference.min_years")}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-2">
-                    Contract Length (Max Years)
-                  </label>
-                  <input
-                    type="number"
-                    value={context.contracts.contract_length_preference.max_years}
-                    onChange={(e) =>
-                      updateField(
-                        "contracts.contract_length_preference.max_years",
-                        Number(e.target.value)
-                      )
-                    }
-                    className="w-full px-4 py-3 bg-[#f6f6f6] border border-gray-200 rounded-xl text-[#2C2C2C] focus:outline-none focus:border-[#0031FF]"
-                  />
-                  {renderFieldError("contracts.contract_length_preference.max_years")}
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <label className="flex items-center gap-2 text-sm text-gray-600">
-                  <input
-                    type="checkbox"
-                    checked={context.contracts.loan_interest}
-                    onChange={(e) => updateField("contracts.loan_interest", e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  Loan interest
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-600">
-                  <input
-                    type="checkbox"
-                    checked={context.contracts.sell_on_clause_ok}
-                    onChange={(e) =>
-                      updateField("contracts.sell_on_clause_ok", e.target.checked)
-                    }
-                    className="h-4 w-4"
-                  />
-                  Sell-on clause OK
-                </label>
-              </div>
-
-              {showAdvanced.contracts && (
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <label className="flex items-center gap-2 text-sm text-gray-600">
-                    <input
-                      type="checkbox"
-                      checked={context.contracts.buyback_clause_ok}
-                      onChange={(e) =>
-                        updateField("contracts.buyback_clause_ok", e.target.checked)
-                      }
-                      className="h-4 w-4"
-                    />
-                    Buyback clause OK
-                  </label>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-2">
-                      Release Clause Policy
-                    </label>
-                    <select
-                      value={context.contracts.release_clause_policy}
-                      onChange={(e) =>
-                        updateField("contracts.release_clause_policy", e.target.value)
-                      }
-                      className="w-full px-4 py-3 bg-[#f6f6f6] border border-gray-200 rounded-xl text-[#2C2C2C] focus:outline-none focus:border-[#0031FF]"
-                    >
-                      {RELEASE_CLAUSE_POLICIES.map((value) => (
-                        <option key={value} value={value}>
-                          {value.replace("_", " ")}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-2">
-                      Image Rights Policy
-                    </label>
-                    <select
-                      value={context.contracts.image_rights_policy}
-                      onChange={(e) =>
-                        updateField("contracts.image_rights_policy", e.target.value)
-                      }
-                      className="w-full px-4 py-3 bg-[#f6f6f6] border border-gray-200 rounded-xl text-[#2C2C2C] focus:outline-none focus:border-[#0031FF]"
-                    >
-                      {IMAGE_RIGHTS_POLICIES.map((value) => (
-                        <option key={value} value={value}>
-                          {value.replace("_", " ")}
                         </option>
                       ))}
                     </select>
