@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSportmonksClient } from "@/lib/sportmonks";
+import { memoryCache } from "@/lib/cache/memory";
+
+// Cache TTL: 1 hour (featured players don't change frequently)
+const CACHE_TTL_SECONDS = 60 * 60;
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,19 +40,33 @@ export async function GET(request: NextRequest) {
     const maxAge = context.recruitment?.age_preference?.max || 35;
     const maxValue = context.finances?.transfer_budget_eur || 50000000;
 
+    // Create cache key based on club criteria
+    const cacheKey = `featured-players:${user.user_metadata.club_id}:${priorityPositions.sort().join(",")}:${minAge}-${maxAge}:${maxValue}`;
+
+    // Check cache first
+    const cachedData = memoryCache.get<{ data: unknown[]; total: number }>(cacheKey);
+    if (cachedData) {
+      return NextResponse.json(cachedData);
+    }
+
     // If no priority positions, return random featured players
     if (priorityPositions.length === 0) {
       const sportmonks = getSportmonksClient();
-      const players = await sportmonks.getPlayers({
-        filters: `transferValueMin:1000000;transferValueMax:${maxValue}`,
+      const players = await sportmonks.getAllPlayers({
+        filters: { transferValueMin: 1000000, transferValueMax: maxValue },
         include: "position;nationality;currentTeam",
         per_page: 12,
       });
 
-      return NextResponse.json({
+      const result = {
         data: players.data || [],
         total: players.pagination?.count || 0,
-      });
+      };
+
+      // Cache the result
+      memoryCache.set(cacheKey, result, CACHE_TTL_SECONDS);
+
+      return NextResponse.json(result);
     }
 
     // Map position abbreviations to Sportmonks IDs (approximate)
@@ -94,18 +112,16 @@ export async function GET(request: NextRequest) {
     const sportmonks = getSportmonksClient();
 
     // Build filters
-    const filters = [
+    const filtersStr = [
       `positionIds:${positionIds.join(",")}`,
       `transferValueMax:${maxValue}`,
       `transferValueMin:100000`, // Exclude players with no value
-    ];
+    ].join(";");
 
-    const players = await sportmonks.getPlayers({
-      filters: filters.join(";"),
+    const players = await sportmonks.getAllPlayers({
+      filters: { filters: filtersStr },
       include: "position;nationality;currentTeam;statistics",
       per_page: 12,
-      orderColumn: "market_value",
-      sortOrder: "desc",
     });
 
     if (!players.data) {
@@ -119,10 +135,15 @@ export async function GET(request: NextRequest) {
       return age >= minAge && age <= maxAge;
     });
 
-    return NextResponse.json({
+    const result = {
       data: filteredPlayers.slice(0, 12),
       total: filteredPlayers.length,
-    });
+    };
+
+    // Cache the result
+    memoryCache.set(cacheKey, result, CACHE_TTL_SECONDS);
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Featured players error:", error);
     return NextResponse.json(

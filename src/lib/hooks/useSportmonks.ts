@@ -343,7 +343,7 @@ export function useSportsHeadlines(options?: { lang?: string; country?: string; 
 
 // Featured players hook - matches club recruitment needs
 export function useFeaturedPlayers() {
-  return useApiData<SportmonksResponse<SportmonksPlayer>>('/api/club/featured-players', {
+  return useApiData<{ data: SportmonksPlayer[]; total: number }>('/api/club/featured-players', {
     enabled: true,
   });
 }

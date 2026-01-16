@@ -214,6 +214,8 @@ export default function ClubOnboardingPage() {
     [updateField]
   );
 
+  const [shouldSaveAfterApply, setShouldSaveAfterApply] = useState(false);
+
   const handleApplyStrategy = useCallback(
     (extractedData: {
       priority_positions?: string[];
@@ -274,14 +276,23 @@ export default function ClubOnboardingPage() {
         return next;
       });
 
-      // Show success message or indicator
+      // Trigger save after context updates
       setSaved(false);
-      setTimeout(() => {
-        handleSave();
-      }, 100);
+      setShouldSaveAfterApply(true);
     },
-    [handleSave]
+    []
   );
+
+  // Auto-save after applying strategy
+  useEffect(() => {
+    if (shouldSaveAfterApply) {
+      const timer = setTimeout(async () => {
+        await handleSave();
+        setShouldSaveAfterApply(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldSaveAfterApply]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedClubSearch(clubSearchQuery), 400);
@@ -738,6 +749,7 @@ export default function ClubOnboardingPage() {
                       className="w-full px-4 py-3 bg-[#f6f6f6] border border-gray-200 rounded-xl text-[#2C2C2C] focus:outline-none focus:border-[#0031FF]"
                     />
                   </div>
+                </div>
                 </div>
               )}
             </div>

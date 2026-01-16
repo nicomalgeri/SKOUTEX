@@ -178,7 +178,7 @@ Rules:
     // Validate positions are valid
     if (extractedData.priority_positions) {
       extractedData.priority_positions = extractedData.priority_positions
-        .filter((pos: string) => validPositions.includes(pos))
+        .filter((pos: string) => validPositions.includes(pos as typeof validPositions[number]))
         .slice(0, 5);
     }
 
@@ -196,7 +196,7 @@ Rules:
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid data extracted", details: error.errors },
+        { error: "Invalid data extracted", details: error.issues },
         { status: 422 }
       );
     }
