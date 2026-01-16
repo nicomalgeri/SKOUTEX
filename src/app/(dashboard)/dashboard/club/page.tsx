@@ -29,7 +29,7 @@ import {
   mergeClubContext,
 } from "@/lib/club/context";
 import { useClub, useClubSearch } from "@/lib/hooks/useSportmonks";
-import { ChevronLeft, ChevronRight, Loader2, Save, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Loader2, Save, Search } from "lucide-react";
 import { formatNumber, parseFormattedNumber } from "@/lib/utils/formatters";
 import { PositionSelector } from "@/components/club/PositionSelector";
 import { StrategyChat } from "@/components/club/StrategyChat";
@@ -95,7 +95,6 @@ const fieldLabels: Record<string, string> = {
   "identity.league": "League",
   "identity.tier": "Tier",
   "finances.transfer_budget_eur": "Transfer budget (EUR)",
-  "finances.wage_budget_weekly_eur": "Weekly wage budget (EUR)",
   "finances.currency": "Currency",
   "playing_style.formation_primary": "Primary formation",
   "playing_style.style": "Playing style",
@@ -637,7 +636,7 @@ export default function ClubOnboardingPage() {
 
           {currentStep.id === "finances" && (
             <div className="space-y-6">
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-2">
                     Transfer Budget (EUR)
@@ -655,20 +654,6 @@ export default function ClubOnboardingPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-2">
-                    Weekly Wage Budget (EUR)
-                  </label>
-                  <input
-                    type="number"
-                    value={context.finances.wage_budget_weekly_eur}
-                    onChange={(e) =>
-                      updateField("finances.wage_budget_weekly_eur", Number(e.target.value))
-                    }
-                    className="w-full px-4 py-3 bg-[#f6f6f6] border border-gray-200 rounded-xl text-[#2C2C2C] focus:outline-none focus:border-[#0031FF]"
-                  />
-                  {renderFieldError("finances.wage_budget_weekly_eur")}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-2">
                     Currency
                   </label>
                   <input
@@ -681,8 +666,38 @@ export default function ClubOnboardingPage() {
                 </div>
               </div>
 
+              <button
+                type="button"
+                onClick={() =>
+                  setShowAdvanced((prev) => ({ ...prev, finances: !prev.finances }))
+                }
+                className="flex items-center gap-2 text-sm text-[#0031FF] hover:underline"
+              >
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${
+                    showAdvanced.finances ? "rotate-180" : ""
+                  }`}
+                />
+                {showAdvanced.finances ? "Hide" : "Show"} Advanced Options
+              </button>
+
               {showAdvanced.finances && (
-                <div className="grid sm:grid-cols-3 gap-4">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-2">
+                      Weekly Wage Budget (EUR) <span className="text-gray-400">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formatNumber(context.finances.wage_budget_weekly_eur)}
+                      onChange={(e) =>
+                        updateField("finances.wage_budget_weekly_eur", parseFormattedNumber(e.target.value))
+                      }
+                      placeholder="500,000"
+                      className="w-full px-4 py-3 bg-[#f6f6f6] border border-gray-200 rounded-xl text-[#2C2C2C] focus:outline-none focus:border-[#0031FF]"
+                    />
+                  </div>
+                  <div className="grid sm:grid-cols-3 gap-4">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
