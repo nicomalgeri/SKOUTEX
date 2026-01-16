@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { zodTextFormat } from "openai/helpers/zod";
 import { getOpenAI } from "@/lib/ai/openai";
 import { MODELS } from "@/lib/ai/models";
@@ -10,6 +10,10 @@ import { reportWriterPrompt } from "@/lib/ai/prompts/reportWriter";
 import { getFitScoreGate } from "@/lib/club-context/fitScoreGate";
 import { getClubContextForUser } from "@/lib/club/contextStore";
 import { getClubForUserOrCreate } from "@/lib/auth/getUserAndClub";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { withValidation } from "@/lib/middleware/validate";
+import { AIChatSchema } from "@/lib/validation/schemas";
+import { sanitizeString } from "@/lib/validation/schemas";
 
 // IMPORTANT: OpenAI SDK requires Node runtime in most Next.js deployments.
 export const runtime = "nodejs";
@@ -62,14 +66,10 @@ async function getPlayerProfile(_args: {
   return null;
 }
 
-export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({}));
-  const message: string = body?.message ?? "";
-  const depth: "quick" | "dense" = body?.depth === "dense" ? "dense" : "quick";
-
-  if (!message.trim()) {
-    return Response.json({ error: "Missing message" }, { status: 400 });
-  }
+async function chat(req: NextRequest, validatedData: any) {
+  // Sanitize message to prevent XSS
+  const message = sanitizeString(validatedData.message);
+  const depth: "quick" | "dense" = validatedData.depth === "dense" ? "dense" : "quick";
 
   let clubId = "";
   try {
@@ -77,9 +77,9 @@ export async function POST(req: NextRequest) {
     clubId = club.id;
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const club = await getClubModel(clubId);
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
   const openai = getOpenAI();
 
   if (!openai) {
-    return Response.json(
+    return NextResponse.json(
       { error: "OpenAI not configured" },
       { status: 500 }
     );
@@ -114,14 +114,14 @@ export async function POST(req: NextRequest) {
   const intent = parsed.output_parsed;
 
   if (!intent) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Failed to parse intent from message" },
       { status: 500 }
     );
   }
 
   if (intent.needs_clarification && intent.follow_up_question) {
-    return Response.json({
+    return NextResponse.json({
       type: "clarify",
       question: intent.follow_up_question,
       intent,
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!gate.unlocked) {
-    return Response.json({
+    return NextResponse.json({
       type: "answer",
       text: "Complete profile to see fit score",
       gate,
@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    return Response.json({
+    return NextResponse.json({
       type: "answer",
       text: answer.output_text,
       intent,
@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!player) {
-      return Response.json({
+      return NextResponse.json({
         type: "answer",
         text:
           intent.language.startsWith("es")
@@ -214,7 +214,7 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    return Response.json({
+    return NextResponse.json({
       type: "answer",
       text: answer.output_text,
       intent,
@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!player) {
-      return Response.json(
+      return NextResponse.json(
         { error: "Player not found for report", intent },
         { status: 404 }
       );
@@ -257,7 +257,7 @@ export async function POST(req: NextRequest) {
       text: { format: zodTextFormat(PlayerReportSchema, "player_report") },
     });
 
-    return Response.json({
+    return NextResponse.json({
       type: "report",
       report: report.output_parsed,
       intent,
@@ -265,7 +265,7 @@ export async function POST(req: NextRequest) {
   }
 
   // fallback
-  return Response.json({
+  return NextResponse.json({
     type: "answer",
     text:
       intent.language.startsWith("es")
@@ -274,3 +274,9 @@ export async function POST(req: NextRequest) {
     intent,
   });
 }
+
+// Export with rate limiting and validation
+export const POST = withRateLimit(
+  RateLimitPresets.AI_OPERATIONS,
+  withValidation(AIChatSchema, chat)
+);

@@ -1,25 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSportmonksClient } from '@/lib/sportmonks';
 import { filterPlayersByAllowed, mergeIncludes } from '@/lib/sportmonks/leagueFilters';
+import { withRateLimit, RateLimitPresets } from '@/lib/middleware/rate-limit';
+import { validateQuery } from '@/lib/middleware/validate';
+import { PlayerSearchSchema } from '@/lib/validation/schemas';
 
-export async function GET(request: NextRequest) {
+async function searchPlayers(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const query = searchParams.get('q');
+
+  // Validate query parameters
+  const filters = validateQuery(PlayerSearchSchema, searchParams);
+
   const include = mergeIncludes(
-    searchParams.get('include') || 'position;nationality;teams.team;statistics',
+    filters.include || 'position;nationality;teams.team;statistics',
     'teams.team.activeSeasons'
   );
 
-  if (!query) {
-    return NextResponse.json(
-      { error: 'Search query is required' },
-      { status: 400 }
-    );
-  }
-
   try {
     const client = getSportmonksClient();
-    const response = await client.searchPlayers(query, include);
+    const response = await client.searchPlayers(filters.q, include);
 
     const filtered = filterPlayersByAllowed(response.data || []);
     return NextResponse.json({ ...response, data: filtered });
@@ -31,3 +30,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// Export with rate limiting
+export const GET = withRateLimit(RateLimitPresets.NORMAL, searchPlayers);

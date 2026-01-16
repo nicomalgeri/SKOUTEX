@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { z } from "zod";
 import { FOOTBALL_POSITIONS } from "@/lib/club/positions";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { withValidation } from "@/lib/middleware/validate";
+import { AnalyzeStrategySchema } from "@/lib/validation/schemas";
+import { sanitizeString } from "@/lib/validation/schemas";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -53,17 +57,10 @@ const StrategyExtractionSchema = z.object({
 
 type StrategyExtraction = z.infer<typeof StrategyExtractionSchema>;
 
-export async function POST(request: NextRequest) {
+async function analyzeStrategy(request: NextRequest, validatedData: z.infer<typeof AnalyzeStrategySchema>) {
   try {
-    const body = await request.json();
-    const { strategy } = body;
-
-    if (!strategy || typeof strategy !== "string" || strategy.trim().length < 10) {
-      return NextResponse.json(
-        { error: "Strategy text must be at least 10 characters" },
-        { status: 400 }
-      );
-    }
+    // Sanitize the strategy input to prevent XSS
+    const strategy = sanitizeString(validatedData.strategy);
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
@@ -207,3 +204,9 @@ Rules:
     );
   }
 }
+
+// Export with rate limiting and validation
+export const POST = withRateLimit(
+  RateLimitPresets.AI_OPERATIONS,
+  withValidation(AnalyzeStrategySchema, analyzeStrategy)
+);

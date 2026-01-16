@@ -9,8 +9,12 @@ import {
   upsertClubContextForUser,
 } from "@/lib/club/contextStore";
 import { getClubForUserOrCreate } from "@/lib/auth/getUserAndClub";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { withValidation } from "@/lib/middleware/validate";
+import { ClubContextUpdateSchema } from "@/lib/validation/schemas";
+import { sanitizeObject } from "@/lib/validation/schemas";
 
-export async function GET(_request: NextRequest) {
+async function getContext(_request: NextRequest) {
   try {
     const { club } = await getClubForUserOrCreate();
     const existing = await getClubContextForUser();
@@ -35,18 +39,20 @@ export async function GET(_request: NextRequest) {
 }
 
 // POST = full context save from onboarding (accepts full or partial context payload).
-export async function POST(request: NextRequest) {
+async function saveContext(request: NextRequest, validatedData: any) {
   try {
     const { club, supabase } = await getClubForUserOrCreate();
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+
+    // Sanitize inputs to prevent XSS
+    const sanitized = sanitizeObject(validatedData);
 
     const now = new Date().toISOString();
     const payload =
-      (body.context as Partial<Record<string, unknown>> | undefined) ??
-      (body as Partial<Record<string, unknown>>);
+      (sanitized.context as Partial<Record<string, unknown>> | undefined) ??
+      (sanitized as Partial<Record<string, unknown>>);
     const clubPayload =
-      body.club && typeof body.club === "object"
-        ? (body.club as Record<string, unknown>)
+      sanitized.club && typeof sanitized.club === "object"
+        ? (sanitized.club as Record<string, unknown>)
         : null;
     const clubUpdate: { name?: string; logo_url?: string } = {};
     if (clubPayload && typeof clubPayload.name === "string") {
@@ -99,18 +105,20 @@ export async function POST(request: NextRequest) {
 }
 
 // PATCH = partial context updates from inline edits.
-export async function PATCH(request: NextRequest) {
+async function updateContext(request: NextRequest, validatedData: any) {
   try {
     const { club, supabase } = await getClubForUserOrCreate();
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+
+    // Sanitize inputs to prevent XSS
+    const sanitized = sanitizeObject(validatedData);
 
     const now = new Date().toISOString();
     const payload =
-      (body.context as Partial<Record<string, unknown>> | undefined) ??
-      (body as Partial<Record<string, unknown>>);
+      (sanitized.context as Partial<Record<string, unknown>> | undefined) ??
+      (sanitized as Partial<Record<string, unknown>>);
     const clubPayload =
-      body.club && typeof body.club === "object"
-        ? (body.club as Record<string, unknown>)
+      sanitized.club && typeof sanitized.club === "object"
+        ? (sanitized.club as Record<string, unknown>)
         : null;
     const clubUpdate: { name?: string; logo_url?: string } = {};
     if (clubPayload && typeof clubPayload.name === "string") {
@@ -161,3 +169,16 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
+
+// Export with rate limiting and validation
+export const GET = withRateLimit(RateLimitPresets.GENEROUS, getContext);
+
+export const POST = withRateLimit(
+  RateLimitPresets.NORMAL,
+  withValidation(ClubContextUpdateSchema, saveContext)
+);
+
+export const PATCH = withRateLimit(
+  RateLimitPresets.NORMAL,
+  withValidation(ClubContextUpdateSchema, updateContext)
+);

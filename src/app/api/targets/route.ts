@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { CreateTargetInput } from "@/lib/targets/types";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { withValidation, validateQuery } from "@/lib/middleware/validate";
+import { CreateTargetSchema, TargetFiltersSchema } from "@/lib/validation/schemas";
+import { sanitizeObject } from "@/lib/validation/schemas";
 
 /**
  * GET /api/targets
  * Fetch all transfer targets for the authenticated user's club
  */
-export async function GET(request: NextRequest) {
+async function getTargets(request: NextRequest) {
   try {
     const supabase = await createClient();
 
@@ -26,10 +30,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No club associated with user" }, { status: 400 });
     }
 
-    // Parse query parameters
+    // Validate query parameters
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status");
-    const priority = searchParams.get("priority");
+    const filters = validateQuery(TargetFiltersSchema, searchParams);
 
     // Build query
     let query = supabase
@@ -39,11 +42,11 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     // Apply filters
-    if (status) {
-      query = query.eq("status", status);
+    if (filters.status) {
+      query = query.eq("status", filters.status);
     }
-    if (priority) {
-      query = query.eq("priority", priority);
+    if (filters.priority) {
+      query = query.eq("priority", filters.priority);
     }
 
     const { data, error } = await query;
@@ -69,11 +72,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Apply rate limiting (30 requests per minute)
+export const GET = withRateLimit(RateLimitPresets.NORMAL, getTargets);
+
 /**
  * POST /api/targets
  * Create a new transfer target
  */
-export async function POST(request: NextRequest) {
+async function createTarget(request: NextRequest, validatedData: CreateTargetInput) {
   try {
     const supabase = await createClient();
 
@@ -93,16 +99,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No club associated with user" }, { status: 400 });
     }
 
-    // Parse request body
-    const body: CreateTargetInput = await request.json();
-
-    // Validate required fields
-    if (!body.player_id || !body.player_name || !body.priority) {
-      return NextResponse.json(
-        { error: "Missing required fields: player_id, player_name, priority" },
-        { status: 400 }
-      );
-    }
+    // Sanitize text inputs to prevent XSS
+    const sanitized = sanitizeObject(validatedData);
 
     // Insert target
     const { data, error } = await supabase
@@ -110,18 +108,18 @@ export async function POST(request: NextRequest) {
       .insert({
         club_id: clubId,
         user_id: user.id,
-        player_id: body.player_id,
-        player_name: body.player_name,
-        current_club: body.current_club || null,
-        position: body.position || null,
-        age: body.age || null,
-        nationality: body.nationality || null,
-        market_value_eur: body.market_value_eur || null,
-        priority: body.priority,
-        target_price_eur: body.target_price_eur || null,
-        max_price_eur: body.max_price_eur || null,
-        notes: body.notes || null,
-        status: body.status || "scouting",
+        player_id: sanitized.player_id,
+        player_name: sanitized.player_name,
+        current_club: sanitized.current_club || null,
+        position: sanitized.position || null,
+        age: sanitized.age || null,
+        nationality: sanitized.nationality || null,
+        market_value_eur: sanitized.market_value_eur || null,
+        priority: sanitized.priority,
+        target_price_eur: sanitized.target_price_eur || null,
+        max_price_eur: sanitized.max_price_eur || null,
+        notes: sanitized.notes || null,
+        status: sanitized.status || "scouting",
       })
       .select()
       .single();
@@ -151,3 +149,9 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Apply rate limiting and validation (30 requests per minute)
+export const POST = withRateLimit(
+  RateLimitPresets.NORMAL,
+  withValidation(CreateTargetSchema, createTarget)
+);

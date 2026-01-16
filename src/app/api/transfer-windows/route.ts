@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { memoryCache } from "@/lib/cache/memory";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 // Cache TTL: 1 day (transfer windows don't change frequently)
 const CACHE_TTL_SECONDS = 24 * 60 * 60;
 
-export async function GET(request: NextRequest) {
+async function getTransferWindows(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const league = searchParams.get("league");
@@ -56,3 +57,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// Export with rate limiting
+export const GET = withRateLimit(RateLimitPresets.GENEROUS, getTransferWindows);

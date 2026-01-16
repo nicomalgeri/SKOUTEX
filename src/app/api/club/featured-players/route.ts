@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSportmonksClient } from "@/lib/sportmonks";
 import { memoryCache } from "@/lib/cache/memory";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 // Cache TTL: 1 hour (featured players don't change frequently)
 const CACHE_TTL_SECONDS = 60 * 60;
 
-export async function GET(request: NextRequest) {
+async function getFeaturedPlayers(request: NextRequest) {
   try {
     const supabase = await createClient();
 
@@ -152,6 +153,9 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// Export with rate limiting
+export const GET = withRateLimit(RateLimitPresets.NORMAL, getFeaturedPlayers);
 
 // Helper function to calculate age
 function calculateAge(dateOfBirth: string): number {
