@@ -23,6 +23,7 @@ import {
   Shield,
   Zap,
   Loader2,
+  ListPlus,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -55,6 +56,7 @@ export default function PlayerProfilePage({
   const { id } = use(params);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [addingToTargets, setAddingToTargets] = useState(false);
   const { watchlistIds, addToWatchlist, removeFromWatchlist, addSelectedPlayer, selectedPlayers } = useAppStore();
   const { gate, loading: gateLoading } = useFitScoreGate();
 
@@ -238,6 +240,41 @@ export default function PlayerProfilePage({
     addSelectedPlayer(playerForStore);
   };
 
+  // Handle adding to transfer targets
+  const handleAddToTargets = async () => {
+    setAddingToTargets(true);
+    try {
+      const response = await fetch('/api/targets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_id: Number(player.id),
+          player_name: player.display_name || player.name || "Unknown",
+          current_club: currentTeam?.name || null,
+          position: position || null,
+          age: age || null,
+          nationality: nationality || null,
+          market_value_eur: marketValue || null,
+          priority: 'medium',
+          status: 'scouting',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add to targets');
+      }
+
+      // Show success message and redirect to targets page
+      router.push('/dashboard/targets');
+    } catch (error) {
+      console.error('Failed to add to targets:', error);
+      alert(error instanceof Error ? error.message : 'Failed to add player to targets');
+    } finally {
+      setAddingToTargets(false);
+    }
+  };
+
   return (
     <>
       <Header />
@@ -368,6 +405,18 @@ export default function PlayerProfilePage({
                   title="Add to comparison"
                 >
                   <Plus className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={handleAddToTargets}
+                  disabled={addingToTargets}
+                  className="p-2 rounded-xl bg-gray-100 text-gray-500 hover:text-green-600 transition-all disabled:opacity-50"
+                  title="Add to transfer targets"
+                >
+                  {addingToTargets ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <ListPlus className="w-5 h-5" />
+                  )}
                 </button>
                 <button
                   className="p-2 rounded-xl bg-gray-100 text-gray-500 hover:text-[#2C2C2C] transition-all"
