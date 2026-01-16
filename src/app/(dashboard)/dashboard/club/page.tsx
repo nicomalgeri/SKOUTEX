@@ -32,6 +32,7 @@ import { useClub, useClubSearch } from "@/lib/hooks/useSportmonks";
 import { ChevronLeft, ChevronRight, Loader2, Save, Search } from "lucide-react";
 import { formatNumber, parseFormattedNumber } from "@/lib/utils/formatters";
 import { PositionSelector } from "@/components/club/PositionSelector";
+import { StrategyChat } from "@/components/club/StrategyChat";
 
 type StepId =
   | "identity"
@@ -216,6 +217,75 @@ export default function ClubOnboardingPage() {
       updateField(path, limited);
     },
     [updateField]
+  );
+
+  const handleApplyStrategy = useCallback(
+    (extractedData: {
+      priority_positions?: string[];
+      age_preference?: { min: number; max: number; ideal: number };
+      experience_level?: string;
+      transfer_budget_eur?: number;
+      playing_style?: { style?: string; pressing_intensity?: string };
+      transfer_philosophy?: string;
+      risk_appetite?: string;
+      physical_profile?: string;
+    }) => {
+      setContext((prev) => {
+        const next = JSON.parse(JSON.stringify(prev)) as ClubContext;
+
+        // Apply priority positions
+        if (extractedData.priority_positions) {
+          next.recruitment.priority_positions = extractedData.priority_positions;
+        }
+
+        // Apply age preference
+        if (extractedData.age_preference) {
+          next.recruitment.age_preference = extractedData.age_preference;
+        }
+
+        // Apply experience level
+        if (extractedData.experience_level) {
+          next.recruitment.experience_level = extractedData.experience_level as any;
+        }
+
+        // Apply transfer budget
+        if (extractedData.transfer_budget_eur) {
+          next.finances.transfer_budget_eur = extractedData.transfer_budget_eur;
+        }
+
+        // Apply playing style
+        if (extractedData.playing_style?.style) {
+          next.playing_style.style = extractedData.playing_style.style as any;
+        }
+        if (extractedData.playing_style?.pressing_intensity) {
+          next.playing_style.pressing_intensity = extractedData.playing_style.pressing_intensity as any;
+        }
+
+        // Apply transfer philosophy
+        if (extractedData.transfer_philosophy) {
+          next.strategy.transfer_philosophy = extractedData.transfer_philosophy as any;
+        }
+
+        // Apply risk appetite
+        if (extractedData.risk_appetite) {
+          next.strategy.risk_appetite = extractedData.risk_appetite as any;
+        }
+
+        // Apply physical profile
+        if (extractedData.physical_profile) {
+          next.technical.physical_profile = extractedData.physical_profile as any;
+        }
+
+        return next;
+      });
+
+      // Show success message or indicator
+      setSaved(false);
+      setTimeout(() => {
+        handleSave();
+      }, 100);
+    },
+    [handleSave]
   );
 
   useEffect(() => {
@@ -1271,6 +1341,12 @@ export default function ClubOnboardingPage() {
                   </label>
                 </div>
               )}
+
+              {/* Divider */}
+              <div className="border-t border-gray-200 my-6"></div>
+
+              {/* AI Strategy Assistant */}
+              <StrategyChat onApply={handleApplyStrategy} />
             </div>
           )}
 
