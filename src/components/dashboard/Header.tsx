@@ -1,12 +1,13 @@
 "use client";
 
-import { Menu, Bell, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import Image from "next/image";
 import { useAppStore } from "@/lib/store";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { TransferWindowBadge } from "@/components/TransferWindowBadge";
+import { NotificationBadge } from "@/components/NotificationBadge";
 import { useActiveTransferWindow } from "@/lib/hooks";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 
@@ -155,10 +156,7 @@ export default function Header({ title, subtitle, showClubInfo = false }: Header
           )}
 
           {/* Notifications */}
-          <button className="relative p-2 transition-colors text-gray-500 hover:text-[#2C2C2C]">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-[#0031FF] rounded-full" />
-          </button>
+          <NotificationBadge />
 
           {/* User Avatar */}
           <div className="flex items-center gap-3">
