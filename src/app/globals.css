@@ -115,6 +115,48 @@ html {
   background-size: 100% 100%;
 }
 
+/* Dashboard animations */
+@keyframes scale-check {
+  0% { transform: scale(0.8) rotate(0deg); }
+  50% { transform: scale(1.2) rotate(180deg); }
+  100% { transform: scale(1) rotate(360deg); }
+}
+
+@keyframes confetti {
+  0% {
+    transform: translate(-50%, -50%) translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) translateY(-30px) translateX(var(--tx)) scale(0);
+    opacity: 0;
+  }
+}
+
+.animate-scale-check {
+  animation: scale-check 300ms ease-out;
+}
+
+.animate-confetti {
+  --tx: calc((var(--i, 0) - 5) * 8px);
+  animation: confetti 500ms ease-out forwards;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Active scale utility */
+.active\:scale-98:active {
+  transform: scale(0.98);
+}
+
 /* Print styles for reports */
 @media print {
   body {
@@ -128,5 +170,16 @@ html {
 
   .page-break {
     page-break-before: always;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
