@@ -264,7 +264,7 @@ export const CLUB_CONTEXT_REQUIRED_FIELDS = [
   "identity.league",
   "identity.tier",
   "finances.transfer_budget_eur",
-  "finances.wage_budget_weekly_eur",
+  // "finances.wage_budget_weekly_eur", // REMOVED - Not required anymore
   "playing_style.formation_primary",
   "playing_style.style",
   "recruitment.priority_positions",
@@ -397,12 +397,10 @@ function isValuePresent(path: string, value: unknown): boolean {
   if (typeof value === "string") return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === "number") {
-    if (
-      path === "finances.transfer_budget_eur" ||
-      path === "finances.wage_budget_weekly_eur"
-    ) {
+    if (path === "finances.transfer_budget_eur") {
       return value > 0;
     }
+    // wage_budget_weekly_eur no longer required, so any number is valid
     return true;
   }
   return true;
@@ -422,7 +420,7 @@ export function validateClubContext(
 
   const blockingMissing = [
     "finances.transfer_budget_eur",
-    "finances.wage_budget_weekly_eur",
+    // "finances.wage_budget_weekly_eur", // REMOVED - Not blocking anymore
     "recruitment.priority_positions",
   ].filter((path) => {
     const value = getValueByPath(context as unknown as Record<string, unknown>, path);
