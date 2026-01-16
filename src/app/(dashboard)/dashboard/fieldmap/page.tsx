@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Header from "@/components/dashboard/Header";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 import {
   Search,
   Plus,
@@ -96,18 +97,10 @@ export default function FieldMapPage() {
   const [fieldSlots, setFieldSlots] = useState<Record<string, SportmonksPlayer | null>>({});
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const debouncedQuery = useDebounce(searchQuery, 500);
   const [showFormationDropdown, setShowFormationDropdown] = useState(false);
 
   const { watchlistIds } = useAppStore();
-
-  // Debounce search query
-  useState(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  });
 
   // Search players
   const { data: searchResults, loading: searchLoading } = usePlayerSearch(
@@ -128,8 +121,7 @@ export default function FieldMapPage() {
       [activeSlot]: player,
     }));
     setActiveSlot(null);
-    setSearchQuery("");
-    setDebouncedQuery("");
+    setSearchQuery(""); // Debounced query will update automatically via useDebounce hook
   };
 
   // Remove player from slot
@@ -469,11 +461,7 @@ export default function FieldMapPage() {
                   type="text"
                   placeholder="Search players..."
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    // Debounce
-                    setTimeout(() => setDebouncedQuery(e.target.value), 500);
-                  }}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-[#2C2C2C] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0031FF]/20 focus:border-[#0031FF]"
                 />
               </div>

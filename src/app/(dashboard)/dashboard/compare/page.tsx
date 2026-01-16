@@ -15,6 +15,7 @@ import Image from "next/image";
 import { useAppStore } from "@/lib/store";
 import { usePlayerSearch } from "@/lib/hooks/useSportmonks";
 import { useFitScoreGate } from "@/lib/hooks/useFitScoreGate";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 import {
   formatCurrency,
   getPositionColor,
@@ -34,16 +35,8 @@ export default function ComparePage() {
   const { gate, loading: gateLoading } = useFitScoreGate();
   const fitScoreAllowed = !gateLoading && gate.unlocked;
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const debouncedQuery = useDebounce(searchQuery, 500);
   const [showSearch, setShowSearch] = useState(false);
-
-  // Debounce search query
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   // Fetch search results from API
   const { data: searchResponse, loading: searchLoading } = usePlayerSearch(

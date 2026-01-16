@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { TransferWindowBadge } from "@/components/TransferWindowBadge";
 import { useActiveTransferWindow } from "@/lib/hooks";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 
 interface HeaderProps {
   title?: string;
@@ -29,6 +30,7 @@ type ClubData = {
 export default function Header({ title, subtitle, showClubInfo = false }: HeaderProps) {
   const { setSidebarOpen, sidebarOpen, user } = useAppStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300); // 300ms debounce for header search
   const [club, setClub] = useState<ClubData | null>(null);
   const router = useRouter();
 
@@ -66,6 +68,15 @@ export default function Header({ title, subtitle, showClubInfo = false }: Header
       router.push(`/dashboard/search?q=${encodeURIComponent(searchQuery)}`);
     }
   };
+
+  // Auto-navigate to search when user stops typing (optional UX enhancement)
+  useEffect(() => {
+    if (debouncedSearchQuery.trim() && debouncedSearchQuery.length >= 3) {
+      // Optional: Auto-navigate after user stops typing for 300ms
+      // Uncomment to enable this behavior
+      // router.push(`/dashboard/search?q=${encodeURIComponent(debouncedSearchQuery)}`);
+    }
+  }, [debouncedSearchQuery, router]);
 
   return (
     <header className="sticky top-0 z-30 backdrop-blur-xl border-b bg-white/80 border-gray-200">

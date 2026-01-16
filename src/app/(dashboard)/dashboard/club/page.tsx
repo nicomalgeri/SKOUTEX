@@ -33,6 +33,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, Loader2, Save, Search } from "l
 import { formatNumber, parseFormattedNumber } from "@/lib/utils/formatters";
 import { PositionSelector } from "@/components/club/PositionSelector";
 import { StrategyChat } from "@/components/club/StrategyChat";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 
 type StepId =
   | "identity"
@@ -167,7 +168,7 @@ export default function ClubOnboardingPage() {
   });
 
   const [clubSearchQuery, setClubSearchQuery] = useState("");
-  const [debouncedClubSearch, setDebouncedClubSearch] = useState("");
+  const debouncedClubSearch = useDebounce(clubSearchQuery, 400);
   const [selectedClubId, setSelectedClubId] = useState<number | null>(null);
   const [showClubResults, setShowClubResults] = useState(false);
   const [clubLogoUrl, setClubLogoUrl] = useState<string | null>(null);
@@ -294,10 +295,6 @@ export default function ClubOnboardingPage() {
     }
   }, [shouldSaveAfterApply]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedClubSearch(clubSearchQuery), 400);
-    return () => clearTimeout(timer);
-  }, [clubSearchQuery]);
 
   useEffect(() => {
     if (debouncedClubSearch.length < 2) {

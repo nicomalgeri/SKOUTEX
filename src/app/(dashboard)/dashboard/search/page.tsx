@@ -20,23 +20,7 @@ import { formatCurrency, getPositionColor, getPositionCode, calculateAge, getCur
 import { useAppStore } from "@/lib/store";
 import { POSITIONS } from "@/lib/types";
 import type { SportmonksPlayer } from "@/lib/sportmonks/types";
-
-// Debounce hook
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
+import { useDebounce } from "@/lib/hooks/useDebounce";
 
 function SearchContent() {
   const searchParams = useSearchParams();
