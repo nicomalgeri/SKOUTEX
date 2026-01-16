@@ -326,6 +326,7 @@ function SearchContent() {
                           width={56}
                           height={56}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                         />
                       ) : (
                         <span className="text-[#2C2C2C] text-xl font-semibold">

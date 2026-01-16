@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Header from "@/components/dashboard/Header";
-import RadarChart from "@/components/charts/RadarChart";
+import { LazyRadarChart as RadarChart } from "@/components/charts/LazyCharts";
 import {
   X,
   Plus,

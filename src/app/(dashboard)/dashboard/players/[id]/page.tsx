@@ -3,9 +3,11 @@
 import { useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/dashboard/Header";
-import RadarChart from "@/components/charts/RadarChart";
-import BarChart from "@/components/charts/BarChart";
-import LineChart from "@/components/charts/LineChart";
+import {
+  LazyRadarChart as RadarChart,
+  LazyBarChart as BarChart,
+  LazyLineChart as LineChart,
+} from "@/components/charts/LazyCharts";
 import {
   ArrowLeft,
   Star,

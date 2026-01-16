@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Header from "@/components/dashboard/Header";
-import DistributionChart from "@/components/charts/DistributionChart";
-import LineChart from "@/components/charts/LineChart";
-import BarChart from "@/components/charts/BarChart";
+import {
+  LazyDistributionChart as DistributionChart,
+  LazyLineChart as LineChart,
+  LazyBarChart as BarChart,
+} from "@/components/charts/LazyCharts";
 import {
   TrendingUp,
   Target,

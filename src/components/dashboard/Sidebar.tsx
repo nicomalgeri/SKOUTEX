@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   Newspaper,
   FilePlus2,
+  ListPlus,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
@@ -45,6 +46,7 @@ const navItems = [
   { href: "/dashboard/fieldmap", icon: LayoutGrid, label: "Field Map" },
   { href: "/dashboard/news", icon: Newspaper, label: "News" },
   { href: "/dashboard/watchlist", icon: Star, label: "Watchlist" },
+  { href: "/dashboard/targets", icon: ListPlus, label: "Targets" },
   { href: "/dashboard/compare", icon: Users, label: "Compare Players" },
   { href: "/dashboard/reports", icon: FileText, label: "Reports" },
   { href: "/dashboard/reportex", icon: FilePlus2, label: "ReportTeX" },
