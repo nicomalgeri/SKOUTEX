@@ -64,7 +64,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Header title="Dashboard" subtitle="Welcome back to SKOUTEX" />
+      <Header title="Dashboard" subtitle="Welcome back to SKOUTEX" showClubInfo />
 
       <div className="p-3 sm:p-4 lg:p-6 space-y-6 sm:space-y-8 w-full max-w-[100vw] lg:max-w-none overflow-hidden">
         {/* Quick Stats */}

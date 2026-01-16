@@ -1,19 +1,58 @@
 "use client";
 
 import { Menu, Bell, Search } from "lucide-react";
+import Image from "next/image";
 import { useAppStore } from "@/lib/store";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 interface HeaderProps {
   title?: string;
   subtitle?: string;
+  showClubInfo?: boolean;
 }
 
-export default function Header({ title, subtitle }: HeaderProps) {
+type ClubData = {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  club_context: {
+    identity?: {
+      league?: string;
+    };
+  } | null;
+};
+
+export default function Header({ title, subtitle, showClubInfo = false }: HeaderProps) {
   const { setSidebarOpen, sidebarOpen, user } = useAppStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const [club, setClub] = useState<ClubData | null>(null);
   const router = useRouter();
+
+  // Fetch club data
+  useEffect(() => {
+    if (!showClubInfo) return;
+
+    async function fetchClub() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data: clubData } = await supabase
+        .from("clubs")
+        .select("id, name, logo_url, club_context")
+        .eq("id", user.user_metadata.club_id)
+        .single();
+
+      if (clubData) {
+        setClub(clubData);
+      }
+    }
+
+    fetchClub();
+  }, [showClubInfo]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +101,35 @@ export default function Header({ title, subtitle }: HeaderProps) {
         </form>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
+          {/* Club Info */}
+          {showClubInfo && club && (
+            <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+              {club.logo_url ? (
+                <Image
+                  src={club.logo_url}
+                  alt={club.name}
+                  width={32}
+                  height={32}
+                  className="rounded-full object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-8 h-8 bg-electric-blue rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">
+                    {club.name.charAt(0)}
+                  </span>
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{club.name}</p>
+                {club.club_context?.identity?.league && (
+                  <p className="text-xs text-gray-500">{club.club_context.identity.league}</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Notifications */}
           <button className="relative p-2 transition-colors text-gray-500 hover:text-[#2C2C2C]">
             <Bell className="w-5 h-5" />

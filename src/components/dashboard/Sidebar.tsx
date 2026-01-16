@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Search,
@@ -25,6 +26,12 @@ import {
 import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+
+type ClubData = {
+  id: string;
+  name: string;
+  logo_url: string | null;
+};
 
 // Brand colors - Light theme
 // Background: #f6f6f6, borders: #e5e5e5, cards: #ffffff
@@ -54,6 +61,29 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { sidebarOpen, setSidebarOpen } = useAppStore();
+  const [club, setClub] = useState<ClubData | null>(null);
+
+  // Fetch club data on mount
+  useEffect(() => {
+    async function fetchClub() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data: clubData } = await supabase
+        .from("clubs")
+        .select("id, name, logo_url")
+        .eq("id", user.user_metadata.club_id)
+        .single();
+
+      if (clubData) {
+        setClub(clubData);
+      }
+    }
+
+    fetchClub();
+  }, []);
 
   // Close sidebar on mobile when clicking a link
   const handleNavClick = () => {
@@ -100,9 +130,22 @@ export default function Sidebar() {
                   priority
                 />
               ) : (
-                <div className="w-10 h-10 bg-[#0031FF] rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">S</span>
-                </div>
+                club?.logo_url ? (
+                  <Image
+                    src={club.logo_url}
+                    alt={club.name}
+                    width={40}
+                    height={40}
+                    className="rounded-full object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-[#0031FF] rounded-xl flex items-center justify-center">
+                    <span className="text-white font-bold text-lg">
+                      {club?.name?.charAt(0) || 'S'}
+                    </span>
+                  </div>
+                )
               )}
             </Link>
           </div>
