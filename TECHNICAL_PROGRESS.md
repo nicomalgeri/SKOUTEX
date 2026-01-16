@@ -1,10 +1,11 @@
 # Technical Progress Report
 **Date**: January 16, 2026
+**Last Updated**: January 16, 2026 (Evening)
 **Focus**: Core technical improvements (no commercial aspects)
 
 ---
 
-## ✅ Completed (Phase 1)
+## ✅ Completed (Phase 1 + Phase 3 Item 1)
 
 ### 1. Fixed Wage Budget UI Issue
 **Status**: COMPLETE
@@ -196,27 +197,47 @@ export const GET = withErrorHandling(async (req) => {
 
 ---
 
+### 5. Transfer Windows Feature
+**Status**: COMPLETE
+**Commit**: `b1abf6a`
+
+**Implementation**:
+- Created transfer_windows table with league, season, window_type
+- Pre-populated 2025-26 windows for 5 major leagues
+- Built calculator for status (open/closed/upcoming)
+- Real-time countdown with minute-level updates
+- Color-coded urgency (red ≤3 days, amber ≤7 days, green >7 days)
+- API endpoint with 24-hour cache
+- React hook useActiveTransferWindow()
+- Badge component for header integration
+- Card component for detailed view
+
+**Files Created**:
+- `supabase/migrations/20260116_create_transfer_windows.sql`
+- `src/lib/transfer-windows/config.ts`
+- `src/lib/transfer-windows/calculator.ts`
+- `src/app/api/transfer-windows/route.ts`
+- `src/lib/hooks/useTransferWindows.ts`
+- `src/components/TransferWindowBadge.tsx`
+
+**Files Modified**:
+- `src/components/dashboard/Header.tsx` (added badge)
+- `src/lib/hooks/index.ts` (export new hook)
+
+**Benefits**:
+- Users see transfer urgency at a glance
+- Helps scouts prioritize work based on deadlines
+- Professional countdown display
+- Prevents missed transfer windows
+- Extensible to more leagues
+
+---
+
 ## 🚀 Next Steps (From TECHNICAL_ROADMAP.md)
 
 ### Immediate Priorities
 
-#### 1. Transfer Windows Feature (Phase 3, Item 1)
-**Effort**: ~1 day
-**What**:
-- Database schema for transfer windows
-- Calculate days remaining
-- Show countdown in UI
-- Block/warn when window closed
-
-**Files to create**:
-```
-src/lib/transfer-windows/config.ts
-src/lib/transfer-windows/calculator.ts
-src/components/TransferWindowBadge.tsx
-supabase/migrations/XXXXXX_create_transfer_windows.sql
-```
-
-#### 2. Transfer Targets Management (Phase 3, Item 2)
+#### 1. Transfer Targets Management (Phase 3, Item 2)
 **Effort**: ~2 days
 **What**:
 - CRUD operations for targets
@@ -232,7 +253,7 @@ src/components/TargetCard.tsx
 supabase/migrations/XXXXXX_create_transfer_targets.sql
 ```
 
-#### 3. Input Validation with Zod (Phase 2, Item 2)
+#### 2. Input Validation with Zod (Phase 2, Item 2)
 **Effort**: ~3 hours
 **What**:
 - Add Zod schemas for all API endpoints
@@ -245,7 +266,7 @@ src/lib/validation/schemas.ts
 src/lib/middleware/validate.ts
 ```
 
-#### 4. Frontend Optimizations (Phase 4, Item 1)
+#### 3. Frontend Optimizations (Phase 4, Item 1)
 **Effort**: ~1 day
 **What**:
 - React.lazy() for code splitting
