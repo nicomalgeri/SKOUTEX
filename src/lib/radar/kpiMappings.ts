@@ -51,6 +51,11 @@ interface KPIDefinition {
   isPer90: boolean;
 }
 
+export type KpiLabelDefinition = {
+  key: keyof PlayerStats;
+  label: string;
+};
+
 /**
  * KPI mappings by position group
  */
@@ -103,6 +108,15 @@ export const KPI_MAPPINGS: Record<PositionGroup, KPIDefinition[]> = {
     { key: "sweeper_actions_p90", label: "Sweeping", isPercentage: false, isPer90: true },
     { key: "psxg_plus_minus", label: "PSxG", isPercentage: false, isPer90: false },
   ],
+};
+
+export const KPI_LABEL_MAPPINGS: Record<PositionGroup, KpiLabelDefinition[]> = {
+  CB: KPI_MAPPINGS.CB.map(({ key, label }) => ({ key, label })),
+  FB: KPI_MAPPINGS.FB.map(({ key, label }) => ({ key, label })),
+  CM: KPI_MAPPINGS.CM.map(({ key, label }) => ({ key, label })),
+  W: KPI_MAPPINGS.W.map(({ key, label }) => ({ key, label })),
+  ST: KPI_MAPPINGS.ST.map(({ key, label }) => ({ key, label })),
+  GK: KPI_MAPPINGS.GK.map(({ key, label }) => ({ key, label })),
 };
 
 /**

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import type { ClubContext } from "@/lib/club/context";
 import { validateClubContext } from "@/lib/club/context";
 import { getFitScoreGate } from "@/lib/club-context/fitScoreGate";
@@ -182,6 +183,12 @@ export default async function PlayerReportPage({
                 <p className="mb-2">
                   Fit score locked. Complete club profile to unlock scoring.
                 </p>
+                <Link
+                  href="/onboarding"
+                  className="inline-flex min-h-[36px] items-center justify-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  Complete Profile
+                </Link>
                 {missingFields.length > 0 && (
                   <p className="text-gray-500">
                     Missing: {missingFields.join(", ")}

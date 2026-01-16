@@ -175,6 +175,12 @@ export default function InboundTargetsPage() {
                           <div className="mt-2 max-w-[200px] text-xs text-gray-500">
                             Complete club profile to unlock fit scores
                           </div>
+                          <Link
+                            href="/onboarding"
+                            className="mt-3 inline-flex min-h-[32px] items-center justify-center rounded-full border border-gray-200 bg-white px-3 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                          >
+                            Complete Profile
+                          </Link>
                           {target.data_gaps.length > 0 && (
                             <div className="mt-2 text-xs text-gray-400">
                               Missing: {target.data_gaps.join(", ")}

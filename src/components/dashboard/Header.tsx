@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useAppStore } from "@/lib/store";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { TransferWindowBadge } from "@/components/TransferWindowBadge";
 import { NotificationBadge } from "@/components/NotificationBadge";
 import { useActiveTransferWindow } from "@/lib/hooks";
@@ -18,14 +17,9 @@ interface HeaderProps {
 }
 
 type ClubData = {
-  id: string;
   name: string;
-  logo_url: string | null;
-  club_context: {
-    identity?: {
-      league?: string;
-    };
-  } | null;
+  logoUrl: string | null;
+  league?: string | null;
 };
 
 export default function Header({ title, subtitle, showClubInfo = false }: HeaderProps) {
@@ -36,7 +30,7 @@ export default function Header({ title, subtitle, showClubInfo = false }: Header
   const router = useRouter();
 
   // Get transfer window for club's league
-  const league = club?.club_context?.identity?.league || "";
+  const league = club?.league || "";
   const { window: transferWindow } = useActiveTransferWindow(league);
 
   // Fetch club data
@@ -44,19 +38,17 @@ export default function Header({ title, subtitle, showClubInfo = false }: Header
     if (!showClubInfo) return;
 
     async function fetchClub() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) return;
-
-      const { data: clubData } = await supabase
-        .from("clubs")
-        .select("id, name, logo_url, club_context")
-        .eq("id", user.user_metadata.club_id)
-        .single();
-
-      if (clubData) {
-        setClub(clubData);
+      try {
+        const response = await fetch("/api/club/branding");
+        if (!response.ok) return;
+        const data = await response.json();
+        setClub({
+          name: data?.name || "SKOUTEX",
+          logoUrl: data?.logoUrl ?? null,
+          league: data?.league ?? null,
+        });
+      } catch {
+        setClub({ name: "SKOUTEX", logoUrl: null });
       }
     }
 
@@ -130,9 +122,9 @@ export default function Header({ title, subtitle, showClubInfo = false }: Header
           {/* Club Info */}
           {showClubInfo && club && (
             <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
-              {club.logo_url ? (
+              {club.logoUrl ? (
                 <Image
-                  src={club.logo_url}
+                  src={club.logoUrl}
                   alt={club.name}
                   width={32}
                   height={32}
@@ -142,14 +134,14 @@ export default function Header({ title, subtitle, showClubInfo = false }: Header
               ) : (
                 <div className="w-8 h-8 bg-electric-blue rounded-full flex items-center justify-center">
                   <span className="text-white text-sm font-bold">
-                    {club.name.charAt(0)}
+                    {(club.name || "SKOUTEX").charAt(0)}
                   </span>
                 </div>
               )}
               <div>
                 <p className="text-sm font-semibold text-gray-900">{club.name}</p>
-                {club.club_context?.identity?.league && (
-                  <p className="text-xs text-gray-500">{club.club_context.identity.league}</p>
+                {club.league && (
+                  <p className="text-xs text-gray-500">{club.league}</p>
                 )}
               </div>
             </div>

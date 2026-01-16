@@ -29,9 +29,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 type ClubData = {
-  id: string;
   name: string;
-  logo_url: string | null;
+  logoUrl: string | null;
 };
 
 // Brand colors - Light theme
@@ -68,19 +67,13 @@ export default function Sidebar() {
   // Fetch club data on mount
   useEffect(() => {
     async function fetchClub() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) return;
-
-      const { data: clubData } = await supabase
-        .from("clubs")
-        .select("id, name, logo_url")
-        .eq("id", user.user_metadata.club_id)
-        .single();
-
-      if (clubData) {
-        setClub(clubData);
+      try {
+        const response = await fetch("/api/club/branding");
+        if (!response.ok) return;
+        const data = await response.json();
+        setClub({ name: data?.name || "SKOUTEX", logoUrl: data?.logoUrl ?? null });
+      } catch {
+        setClub({ name: "SKOUTEX", logoUrl: null });
       }
     }
 
@@ -123,31 +116,26 @@ export default function Sidebar() {
           {/* Logo */}
           <div className="p-6 border-b border-gray-200">
             <Link href="/dashboard" className="flex items-center gap-3">
-              {sidebarOpen ? (
+              {club?.logoUrl ? (
                 <Image
-                  src="/skoutex-logo.svg"
-                  alt="SKOUTEX"
-                  width={140}
+                  src={club.logoUrl}
+                  alt={club.name || "SKOUTEX"}
+                  width={40}
                   height={40}
-                  priority
+                  className="rounded-full object-cover"
+                  unoptimized
                 />
               ) : (
-                club?.logo_url ? (
-                  <Image
-                    src={club.logo_url}
-                    alt={club.name}
-                    width={40}
-                    height={40}
-                    className="rounded-full object-cover"
-                    unoptimized
-                  />
-                ) : (
-                  <div className="w-10 h-10 bg-[#0031FF] rounded-xl flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">
-                      {club?.name?.charAt(0) || 'S'}
-                    </span>
-                  </div>
-                )
+                <div className="w-10 h-10 bg-[#0031FF] rounded-xl flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">
+                    {(club?.name || "SKOUTEX").charAt(0)}
+                  </span>
+                </div>
+              )}
+              {sidebarOpen && (
+                <span className="text-base font-semibold text-gray-900">
+                  {club?.name || "SKOUTEX"}
+                </span>
               )}
             </Link>
           </div>

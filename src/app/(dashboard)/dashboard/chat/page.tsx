@@ -1,516 +1,975 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import Header from "@/components/dashboard/Header";
-import Link from "next/link";
-import {
-  Send,
-  Mic,
-  MicOff,
-  Sparkles,
-  User,
-  Loader2,
-  Volume2,
-  TrendingUp,
-  MapPin,
-  Calendar,
-  Target,
-  ArrowRight,
-} from "lucide-react";
-import { useAppStore } from "@/lib/store";
-import { v4 as uuidv4 } from "uuid";
-import { formatCurrency, getPositionColor } from "@/lib/utils";
-import { useFitScoreGate } from "@/lib/hooks/useFitScoreGate";
-import FitScoreGateNotice from "@/components/FitScoreGateNotice";
-import type { FitScoreGateResult } from "@/lib/club-context/fitScoreGate";
-import type { ChatMessage } from "@/lib/types";
+import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-interface PlayerInfo {
+type Conversation = {
   id: string;
-  name: string;
-  age: number;
-  position: string;
-  club: string;
-  nationality: string;
-  marketValue: number;
-  contractExpiry?: string;
-  goals?: number;
-  assists?: number;
-  appearances?: number;
-  fitScore?: number;
-  highlight: string;
-}
+  title: string;
+  messages: ChatMessage[];
+  updatedAt: Date;
+};
 
-interface ChatResponse {
-  text?: string;
-  message?: string;
-  players?: PlayerInfo[];
-  type: "recommendation" | "analysis" | "comparison" | "general" | "locked";
-  missing_required_fields?: string[];
-  blocking_missing_fields?: string[];
-  actionUrl?: string;
-}
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+};
 
-const suggestedPrompts = [
-  "Find right wingers under 25 with high dribble success rate",
-  "Compare top CDM targets by defensive stats",
-  "Which players have expiring contracts in top leagues?",
-  "Analyze strikers available under €20M",
-  "Show me undervalued players in Ligue 1",
-  "What's the market trend for young center backs?",
+const initialConversations: Conversation[] = [
+  {
+    id: "conv-1",
+    title: "Transfers from La Liga",
+    updatedAt: new Date(),
+    messages: [
+      {
+        id: "m1",
+        role: "assistant",
+        content:
+          "I can help you with player analysis, transfer recommendations, and tactical insights. What would you like to know?",
+        timestamp: new Date(),
+      },
+      {
+        id: "m2",
+        role: "user",
+        content: "Show me the best central midfielders under 23 years old",
+        timestamp: new Date(),
+      },
+      {
+        id: "m3",
+        role: "assistant",
+        content:
+          "Here are a few starting points:\n\n- **Alejandro Ruiz** — elite progressive passing\n- **Marco Dantas** — strong defensive recoveries\n- **Jules Martin** — high duel win rate\n\nYou can ask for a deeper profile on any of them.",
+        timestamp: new Date(),
+      },
+    ],
+  },
+  {
+    id: "conv-2",
+    title: "Best strikers under 25",
+    updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+    messages: [],
+  },
+  {
+    id: "conv-3",
+    title: "Loan targets in Championship",
+    updatedAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+    messages: [],
+  },
+  {
+    id: "conv-4",
+    title: "Top CBs in Europe",
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    messages: [],
+  },
+  {
+    id: "conv-5",
+    title: "Winger shortlist",
+    updatedAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000),
+    messages: [],
+  },
 ];
 
-// Mini player card for chat responses
-function PlayerCard({
-  player,
-  gate,
-  gateLoading,
-}: {
-  player: PlayerInfo;
-  gate: FitScoreGateResult;
-  gateLoading: boolean;
-}) {
-  const positionColorClass = getPositionColor(player.position);
-  const fitScoreAllowed = !gateLoading && gate.unlocked;
+function formatMessageCount(count: number): string {
+  if (count === 1) return "1 message";
+  return `${count} messages`;
+}
 
+function categorizeConversation(date: Date): "Today" | "Yesterday" | "Last 7 Days" | "Older" {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfYesterday = new Date(startOfToday);
+  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+  const startOfLastWeek = new Date(startOfToday);
+  startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+
+  if (date >= startOfToday) return "Today";
+  if (date >= startOfYesterday) return "Yesterday";
+  if (date >= startOfLastWeek) return "Last 7 Days";
+  return "Older";
+}
+
+function MenuIcon({ className }: { className?: string }) {
   return (
-    <Link
-      href={`/dashboard/players/${player.id}`}
-      className="block bg-[#f6f6f6] border border-gray-200 rounded-xl p-4 hover:border-[#0031FF]/50 hover:bg-[#0031FF]/5 transition-all group"
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
     >
-      <div className="flex items-start gap-4">
-        {/* Player Avatar */}
-        <div className="relative">
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
-            <span className="text-xl font-bold text-[#2C2C2C]">
-              {player.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-            </span>
-          </div>
-          {/* Position Badge */}
-          <div className={`absolute -bottom-1 -right-1 ${positionColorClass} text-white text-xs font-bold px-1.5 py-0.5 rounded`}>
-            {player.position}
-          </div>
-        </div>
-
-        {/* Player Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-semibold text-[#2C2C2C] truncate group-hover:text-[#0031FF] transition-colors">
-              {player.name}
-            </h4>
-            <span className="text-xs text-gray-500">{player.age}y</span>
-          </div>
-
-          <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {player.club}
-            </span>
-            {player.contractExpiry && (
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                {player.contractExpiry.split("-")[0]}
-              </span>
-            )}
-          </div>
-
-          {/* Highlight */}
-          <p className="text-sm text-gray-600 line-clamp-2">{player.highlight}</p>
-        </div>
-
-        {/* Stats Column */}
-        <div className="flex flex-col items-end gap-1">
-          <div className="text-right">
-            <p className="text-sm font-bold text-[#2C2C2C]">{formatCurrency(player.marketValue)}</p>
-            <p className="text-xs text-gray-500">Market Value</p>
-          </div>
-          {fitScoreAllowed ? (
-            player.fitScore && (
-              <div className="flex items-center gap-1.5 mt-1">
-                <Target className="w-3.5 h-3.5 text-[#0031FF]" />
-                <span className="text-sm font-semibold text-[#0031FF]">{player.fitScore}%</span>
-                <span className="text-xs text-gray-500">Fit</span>
-              </div>
-            )
-          ) : (
-            !gateLoading && <FitScoreGateNotice gate={gate} />
-          )}
-        </div>
-      </div>
-
-      {/* Stats Row */}
-      {(player.goals !== undefined || player.assists !== undefined || player.appearances !== undefined) && (
-        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-200">
-          {player.goals !== undefined && (
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500">Goals</span>
-              <span className="text-sm font-medium text-[#2C2C2C]">{player.goals}</span>
-            </div>
-          )}
-          {player.assists !== undefined && (
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500">Assists</span>
-              <span className="text-sm font-medium text-[#2C2C2C]">{player.assists}</span>
-            </div>
-          )}
-          {player.appearances !== undefined && (
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500">Apps</span>
-              <span className="text-sm font-medium text-[#2C2C2C]">{player.appearances}</span>
-            </div>
-          )}
-          <div className="ml-auto flex items-center gap-1 text-[#0031FF] text-xs font-medium group-hover:translate-x-1 transition-transform">
-            View Profile <ArrowRight className="w-3 h-3" />
-          </div>
-        </div>
-      )}
-    </Link>
+      <path d="M3 12h18" />
+      <path d="M3 6h18" />
+      <path d="M3 18h18" />
+    </svg>
   );
 }
 
-// Parse assistant message to check for structured response
-function parseAssistantResponse(content: string): ChatResponse | null {
-  try {
-    return JSON.parse(content);
-  } catch {
-    return null;
+function MoreIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="5" r="1.5" />
+      <circle cx="12" cy="12" r="1.5" />
+      <circle cx="12" cy="19" r="1.5" />
+    </svg>
+  );
+}
+
+function BotIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="7" width="18" height="14" rx="4" />
+      <path d="M12 7V3" />
+      <circle cx="8" cy="13" r="1.5" />
+      <circle cx="16" cy="13" r="1.5" />
+      <path d="M8 17h8" />
+    </svg>
+  );
+}
+
+function SparklesIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3l1.5 3.5L17 8l-3.5 1.5L12 13l-1.5-3.5L7 8l3.5-1.5L12 3z" />
+      <path d="M5 15l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" />
+    </svg>
+  );
+}
+
+function ArrowUpIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 19V5" />
+      <path d="M5 12l7-7 7 7" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 6L6 18" />
+      <path d="M6 6l12 12" />
+    </svg>
+  );
+}
+
+function normalizeText(text: string) {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function renderInline(text: string, role: ChatMessage["role"], keyPrefix: string) {
+  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^\)]+\))/;
+  const nodes: ReactNode[] = [];
+  let remaining = text;
+  let index = 0;
+
+  while (remaining.length > 0) {
+    const match = remaining.match(pattern);
+    if (!match || match.index === undefined) {
+      nodes.push(remaining);
+      break;
+    }
+
+    if (match.index > 0) {
+      nodes.push(remaining.slice(0, match.index));
+    }
+
+    const token = match[0];
+    if (token.startsWith("`")) {
+      const content = token.slice(1, -1);
+      nodes.push(
+        <code
+          key={`${keyPrefix}-code-${index}`}
+          className={`px-1.5 py-0.5 rounded text-[14px] font-mono ${
+            role === "assistant"
+              ? "bg-gray-200 text-gray-900"
+              : "bg-blue-700 text-white"
+          }`}
+        >
+          {content}
+        </code>
+      );
+    } else if (token.startsWith("**")) {
+      const content = token.slice(2, -2);
+      nodes.push(
+        <strong key={`${keyPrefix}-bold-${index}`} className="font-semibold">
+          {content}
+        </strong>
+      );
+    } else if (token.startsWith("*")) {
+      const content = token.slice(1, -1);
+      nodes.push(
+        <em key={`${keyPrefix}-italic-${index}`} className="italic">
+          {content}
+        </em>
+      );
+    } else if (token.startsWith("[")) {
+      const labelMatch = token.match(/\[([^\]]+)\]\(([^\)]+)\)/);
+      if (labelMatch) {
+        nodes.push(
+          <a
+            key={`${keyPrefix}-link-${index}`}
+            href={labelMatch[2]}
+            className={
+              role === "assistant"
+                ? "text-blue-600 hover:text-blue-700 underline"
+                : "text-blue-100 hover:text-white underline"
+            }
+          >
+            {labelMatch[1]}
+          </a>
+        );
+      } else {
+        nodes.push(token);
+      }
+    } else {
+      nodes.push(token);
+    }
+
+    remaining = remaining.slice(match.index + token.length);
+    index += 1;
   }
+
+  return nodes;
+}
+
+function renderMarkdown(content: string, role: ChatMessage["role"], keyPrefix: string) {
+  const blocks: ReactNode[] = [];
+  const lines = content.split("\n");
+  let buffer: string[] = [];
+  let inCode = false;
+  let codeBuffer: string[] = [];
+  let listBuffer: string[] = [];
+
+  const flushParagraph = () => {
+    if (buffer.length === 0) return;
+    const text = normalizeText(buffer.join(" "));
+    blocks.push(
+      <p key={`${keyPrefix}-p-${blocks.length}`}>
+        {renderInline(text, role, `${keyPrefix}-p-${blocks.length}`)}
+      </p>
+    );
+    buffer = [];
+  };
+
+  const flushList = () => {
+    if (listBuffer.length === 0) return;
+    blocks.push(
+      <ul
+        key={`${keyPrefix}-list-${blocks.length}`}
+        className="space-y-1.5 ml-5 list-disc"
+      >
+        {listBuffer.map((item, idx) => (
+          <li key={`${keyPrefix}-li-${idx}`}>
+            {renderInline(item, role, `${keyPrefix}-li-${idx}`)}
+          </li>
+        ))}
+      </ul>
+    );
+    listBuffer = [];
+  };
+
+  lines.forEach((line) => {
+    if (line.trim().startsWith("```")) {
+      if (inCode) {
+        blocks.push(
+          <pre
+            key={`${keyPrefix}-code-${blocks.length}`}
+            className={`my-3 p-4 rounded-xl text-[14px] font-mono overflow-x-auto ${
+              role === "assistant"
+                ? "bg-gray-900 text-gray-100"
+                : "bg-blue-700 text-white"
+            }`}
+          >
+            <code>{codeBuffer.join("\n")}</code>
+          </pre>
+        );
+        codeBuffer = [];
+      } else {
+        flushParagraph();
+        flushList();
+      }
+      inCode = !inCode;
+      return;
+    }
+
+    if (inCode) {
+      codeBuffer.push(line);
+      return;
+    }
+
+    if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
+      flushParagraph();
+      listBuffer.push(line.trim().slice(2));
+      return;
+    }
+
+    if (line.trim() === "") {
+      flushParagraph();
+      flushList();
+      return;
+    }
+
+    buffer.push(line);
+  });
+
+  flushParagraph();
+  flushList();
+
+  return <div className="space-y-3">{blocks}</div>;
 }
 
 export default function ChatPage() {
-  const { chatMessages, addChatMessage } = useAppStore();
-  const { gate, loading: gateLoading } = useFitScoreGate();
+  const [branding, setBranding] = useState<{ name: string; logoUrl: string | null }>({
+    name: "SKOUTEX",
+    logoUrl: null,
+  });
+  const [conversations, setConversations] = useState(initialConversations);
+  const [activeId, setActiveId] = useState(initialConversations[0]?.id ?? "");
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const hamburgerRef = useRef<HTMLButtonElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const conversationButtonRefs = useRef<HTMLButtonElement[]>([]);
+
+  const activeConversation = conversations.find((conv) => conv.id === activeId);
+  const messages = activeConversation?.messages ?? [];
+
+  const groupedConversations = useMemo(() => {
+    const groups: Record<string, Conversation[]> = {
+      Today: [],
+      Yesterday: [],
+      "Last 7 Days": [],
+      Older: [],
+    };
+    conversations.forEach((conv) => {
+      const bucket = categorizeConversation(conv.updatedAt);
+      groups[bucket].push(conv);
+    });
+    return groups;
+  }, [conversations]);
+
+  const flatConversations = useMemo(() => {
+    return ["Today", "Yesterday", "Last 7 Days", "Older"].flatMap(
+      (key) => groupedConversations[key] ?? []
+    );
+  }, [groupedConversations]);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, []);
 
   useEffect(() => {
+    if (scrollContainerRef.current) {
+      const { scrollHeight, scrollTop, clientHeight } = scrollContainerRef.current;
+      setShowScrollButton(scrollHeight - scrollTop - clientHeight > 200);
+    }
     scrollToBottom();
-  }, [chatMessages]);
+  }, [messages, isTyping, scrollToBottom]);
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!input.trim() || isLoading) return;
+  useEffect(() => {
+    if (isSidebarOpen) {
+      closeButtonRef.current?.focus();
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+      hamburgerRef.current?.focus();
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isSidebarOpen]);
 
-    const userMessage: ChatMessage = {
-      id: uuidv4(),
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsSidebarOpen(false);
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, []);
+
+  useEffect(() => {
+    const fetchBranding = async () => {
+      try {
+        const response = await fetch("/api/club/branding");
+        if (!response.ok) return;
+        const data = await response.json();
+        setBranding({
+          name: data?.name || "SKOUTEX",
+          logoUrl: data?.logoUrl ?? null,
+        });
+      } catch {
+        setBranding({ name: "SKOUTEX", logoUrl: null });
+      }
+    };
+    fetchBranding();
+  }, []);
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, [activeId]);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!textareaRef.current) return;
+    textareaRef.current.style.height = "auto";
+    const maxHeight = isMobile ? 100 : 120;
+    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, maxHeight)}px`;
+  }, [input, isMobile]);
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollHeight, scrollTop, clientHeight } = scrollContainerRef.current;
+    setShowScrollButton(scrollHeight - scrollTop - clientHeight > 200);
+  };
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    const message: ChatMessage = {
+      id: `m-${Date.now()}`,
       role: "user",
       content: input.trim(),
       timestamp: new Date(),
     };
-
-    addChatMessage(userMessage);
+    setConversations((prev) =>
+      prev.map((conv) =>
+        conv.id === activeId
+          ? {
+              ...conv,
+              messages: [...conv.messages, message],
+              updatedAt: new Date(),
+            }
+          : conv
+      )
+    );
     setInput("");
-    setIsLoading(true);
+    setIsTyping(true);
 
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...chatMessages, userMessage].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
-      });
-
-      const data = await response.json();
-
-      // Store the structured response as JSON string
-      const assistantMessage: ChatMessage = {
-        id: uuidv4(),
+    window.setTimeout(() => {
+      const response: ChatMessage = {
+        id: `m-${Date.now()}-assistant`,
         role: "assistant",
-        content: JSON.stringify(data),
+        content:
+          "Here is a quick direction: focus on **progressive passers** and players with high *ball recoveries*. Want a full shortlist?",
         timestamp: new Date(),
       };
-
-      addChatMessage(assistantMessage);
-    } catch (error) {
-      console.error("Chat error:", error);
-      addChatMessage({
-        id: uuidv4(),
-        role: "assistant",
-        content: JSON.stringify({
-          text: "I'm sorry, there was an error processing your request. Please try again.",
-          type: "general"
-        }),
-        timestamp: new Date(),
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
-
-  const handlePromptClick = (prompt: string) => {
-    setInput(prompt);
-    inputRef.current?.focus();
-  };
-
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
-    // TODO: Implement actual audio recording with Web Speech API or Whisper
-    if (!isRecording) {
-      // Start recording simulation
-      setTimeout(() => {
-        setIsRecording(false);
-        setInput("Find me a young striker with good aerial ability");
-      }, 2000);
-    }
-  };
-
-  // Render assistant message with visual content
-  const renderAssistantMessage = (message: ChatMessage) => {
-    const parsed = parseAssistantResponse(message.content);
-
-    if (!parsed) {
-      // Fallback to plain text
-      return (
-        <div className="prose prose-sm max-w-none">
-          {message.content.split("\n").map((line, i) => (
-            <p key={i} className="mb-2 last:mb-0 text-gray-700">
-              {line}
-            </p>
-          ))}
-        </div>
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === activeId
+            ? {
+                ...conv,
+                messages: [...conv.messages, response],
+                updatedAt: new Date(),
+              }
+            : conv
+        )
       );
+      setIsTyping(false);
+    }, 800);
+  };
+
+  const handleRetryLoad = () => {
+    setIsLoadingMessages(false);
+    setLoadError(null);
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    handleSend();
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleSend();
     }
+  };
 
-    return (
-      <div className="space-y-4">
-        {/* Text Response */}
-        <div className="prose prose-sm max-w-none">
-          {(parsed.text || parsed.message || "").split("\n").map((line, i) => (
-            <p key={i} className="mb-2 last:mb-0 text-gray-700">
-              {line}
-            </p>
-          ))}
-        </div>
+  const placeholder = isMobile
+    ? "Ask me anything..."
+    : "Ask about players, transfers, tactics...";
 
-        {/* Player Cards */}
-        {parsed.players && parsed.players.length > 0 && (
-          <div className="space-y-3 mt-4">
-            {parsed.players.map((player) => (
-              <PlayerCard
-                key={player.id}
-                player={player}
-                gate={gate}
-                gateLoading={gateLoading}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Response Type Badge */}
-        {parsed.type !== "general" && parsed.type !== "locked" && (
-          <div className="flex items-center gap-2 pt-2">
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-              parsed.type === "recommendation"
-                ? "bg-[#0031FF]/20 text-[#0031FF]"
-                : parsed.type === "analysis"
-                ? "bg-purple-500/20 text-purple-400"
-                : "bg-green-500/20 text-green-400"
-            }`}>
-              {parsed.type === "recommendation" && "AI Recommendation"}
-              {parsed.type === "analysis" && "Player Analysis"}
-              {parsed.type === "comparison" && "Comparison"}
-            </span>
-          </div>
-        )}
-
-        {parsed.type === "locked" && (
-          <FitScoreGateNotice
-            gate={{
-              unlocked: false,
-              missing_required_fields: parsed.missing_required_fields || [],
-              blocking_missing_fields: parsed.blocking_missing_fields || [],
-            }}
-          />
-        )}
-      </div>
-    );
+  const handleConversationKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    index: number
+  ) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      const next = conversationButtonRefs.current[index + 1];
+      next?.focus();
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      const prev = conversationButtonRefs.current[index - 1];
+      prev?.focus();
+    }
   };
 
   return (
-    <>
-      <Header title="AI Scout Assistant" subtitle="Powered by advanced AI" />
+    <div className="flex h-screen overflow-hidden bg-white">
+      <header
+        className="fixed top-0 left-0 right-0 h-16 border-b border-gray-200 bg-white z-50"
+        aria-label="Chat header"
+      >
+        <div className="h-full px-4 sm:px-6 flex items-center justify-between max-w-[1920px] mx-auto">
+          <div className="flex items-center gap-3">
+            <button
+              ref={hamburgerRef}
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors md:hidden"
+              aria-label="Open conversations"
+            >
+              <MenuIcon className="w-5 h-5 text-gray-600" />
+            </button>
+            {branding.logoUrl ? (
+              <img
+                src={branding.logoUrl}
+                className="w-8 h-8 rounded-full object-cover"
+                alt=""
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                <SparklesIcon className="w-4 h-4 text-blue-600" />
+              </div>
+            )}
+            <span className="text-base font-semibold text-gray-900">
+              {branding.name}
+            </span>
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setIsMenuOpen((prev) => !prev)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              aria-label="Chat options"
+              title="Chat options"
+            >
+              <MoreIcon className="w-5 h-5 text-gray-600" />
+            </button>
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-xl border border-gray-200 bg-white shadow-lg">
+                <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
+                  Clear conversation
+                </button>
+                <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
+                  Export as PDF
+                </button>
+                <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
+                  Delete conversation
+                </button>
+                <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
+                  Chat settings
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
 
-      <div className="flex flex-col h-[calc(100vh-64px)] w-full max-w-[100vw] lg:max-w-none overflow-hidden">
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-6">
-          {chatMessages.length === 0 ? (
-            <div className="max-w-3xl mx-auto">
-              {/* Welcome */}
-              <div className="text-center mb-8 pt-8">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#0031FF] to-[#0050FF] rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Sparkles className="w-8 h-8 text-white" />
+      <aside
+        className="fixed left-0 top-16 bottom-0 w-[280px] bg-gray-50 border-r border-gray-200 overflow-y-auto hidden md:block"
+        aria-label="Conversation history"
+      >
+        <div className="p-4 border-b border-gray-200 bg-white">
+          <button
+            className="w-full px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
+            aria-label="Start new conversation"
+          >
+            <span className="text-base leading-none">+</span>
+            New Conversation
+          </button>
+        </div>
+        <nav className="p-3 space-y-6" aria-label="Conversations grouped by date">
+          {conversations.length === 0 ? (
+            <div className="py-12 text-center text-gray-500">No conversations yet</div>
+          ) : (
+            Object.entries(groupedConversations).map(([group, items]) => (
+              <div key={group}>
+                <h3 className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  {group}
+                </h3>
+                <div className="space-y-1">
+                  {items.map((conv) => {
+                    const active = conv.id === activeId;
+                    const index = flatConversations.findIndex((item) => item.id === conv.id);
+                    return (
+                      <button
+                        key={conv.id}
+                        onClick={() => setActiveId(conv.id)}
+                        onKeyDown={(event) => handleConversationKeyDown(event, index)}
+                        ref={(el) => {
+                          if (el && index >= 0) conversationButtonRefs.current[index] = el;
+                        }}
+                        className={
+                          active
+                            ? "w-full px-3 py-2.5 rounded-lg text-left bg-blue-50 border border-blue-200"
+                            : "w-full px-3 py-2.5 rounded-lg text-left hover:bg-gray-100 transition-colors group"
+                        }
+                        aria-label={`Conversation: ${conv.title}, ${formatMessageCount(
+                          conv.messages.length || 1
+                        )}`}
+                      >
+                        <p
+                          className={
+                            active
+                              ? "text-sm font-medium text-blue-900 truncate"
+                              : "text-sm font-medium text-gray-900 truncate group-hover:text-blue-600"
+                          }
+                        >
+                          {conv.title}
+                        </p>
+                        <p
+                          className={
+                            active
+                              ? "text-xs text-blue-600 mt-0.5"
+                              : "text-xs text-gray-500 mt-0.5"
+                          }
+                        >
+                          {formatMessageCount(Math.max(conv.messages.length, 1))}
+                        </p>
+                      </button>
+                    );
+                  })}
                 </div>
-                <h2 className="text-2xl font-bold text-[#2C2C2C] mb-2">
-                  How can I help you today?
+              </div>
+            ))
+          )}
+        </nav>
+      </aside>
+
+      <main className="flex-1 md:ml-[280px] mt-16 overflow-hidden bg-white">
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="h-[calc(100vh-10rem)] overflow-y-auto"
+          role="log"
+          aria-live="polite"
+          aria-label="Chat messages"
+        >
+          <div className="max-w-full md:max-w-[800px] mx-auto px-4 py-6 space-y-6 md:px-6 md:py-8">
+            {isLoadingMessages ? (
+              <div className="py-16 text-center text-gray-500">
+                <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+                Loading messages...
+              </div>
+            ) : loadError ? (
+              <div className="py-16 text-center text-gray-500">
+                Failed to load conversation. Please try again.
+                <div className="mt-4">
+                  <button
+                    onClick={handleRetryLoad}
+                    className="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="py-16 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-4">
+                  <SparklesIcon className="w-8 h-8 text-blue-600" />
+                </div>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                  Scout Assistant
                 </h2>
-                <p className="text-gray-500">
-                  Ask me about players, transfers, tactics, or market insights
+                <p className="text-gray-600 max-w-md mx-auto">
+                  Ask me about players, transfers, tactics, or anything related to football scouting.
                 </p>
               </div>
-
-              {/* Suggested Prompts */}
-              <div className="grid sm:grid-cols-2 gap-3">
-                {suggestedPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    onClick={() => handlePromptClick(prompt)}
-                    className="text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-[#0031FF]/50 hover:bg-[#0031FF]/5 transition-all group"
-                  >
-                    <p className="text-sm text-gray-600 group-hover:text-[#2C2C2C] transition-colors">
-                      {prompt}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="max-w-3xl mx-auto space-y-6">
-              {chatMessages.map((message) => (
+            ) : (
+              messages.map((message, index) => (
                 <div
                   key={message.id}
-                  className={`flex gap-4 ${
-                    message.role === "user" ? "justify-end" : ""
+                  className={`animate-fade-in ${
+                    message.role === "assistant"
+                      ? "flex items-start gap-3"
+                      : "flex items-start gap-3 justify-end"
                   }`}
+                  role="article"
+                  aria-label={
+                    message.role === "assistant"
+                      ? "Message from Scout Assistant"
+                      : "Message from you"
+                  }
+                  style={{ animationDelay: `${index * 10}ms` }}
                 >
                   {message.role === "assistant" && (
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#0031FF] to-[#0050FF] flex items-center justify-center flex-shrink-0">
-                      <Sparkles className="w-4 h-4 text-white" />
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <BotIcon className="w-5 h-5 text-blue-600" />
                     </div>
                   )}
-
                   <div
-                    className={`${
-                      message.role === "user"
-                        ? "max-w-[80%] bg-[#0031FF] text-white rounded-2xl rounded-tr-md px-4 py-3"
-                        : "flex-1 bg-white border border-gray-200 text-gray-700 rounded-2xl rounded-tl-md px-4 py-4"
-                    }`}
+                    className={
+                      message.role === "assistant"
+                        ? "flex-1 max-w-[85%] md:max-w-[600px]"
+                        : "flex-1 max-w-[85%] md:max-w-[600px] flex justify-end"
+                    }
                   >
-                    {message.role === "user" ? (
-                      <div className="prose prose-sm prose-invert max-w-none">
-                        {message.content.split("\n").map((line, i) => (
-                          <p key={i} className="mb-2 last:mb-0">
-                            {line}
-                          </p>
-                        ))}
-                      </div>
-                    ) : (
-                      renderAssistantMessage(message)
-                    )}
-
-                    {message.role === "assistant" && (
-                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200">
-                        <button className="p-1.5 text-gray-500 hover:text-[#2C2C2C] transition-colors">
-                          <Volume2 className="w-4 h-4" />
-                        </button>
-                        <span className="text-xs text-gray-400">
-                          {new Date(message.timestamp).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {message.role === "user" && (
-                    <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                      <User className="w-4 h-4 text-gray-500" />
+                    <div
+                      className={
+                        message.role === "assistant"
+                          ? "rounded-2xl rounded-tl-sm bg-gray-50 px-4 py-3 text-[15px] text-gray-900 leading-relaxed max-w-[85%] md:max-w-[600px]"
+                          : "rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-3 text-[15px] text-white leading-relaxed max-w-[85%] md:max-w-[600px]"
+                      }
+                    >
+                      {renderMarkdown(message.content, message.role, message.id)}
                     </div>
-                  )}
-                </div>
-              ))}
-
-              {isLoading && (
-                <div className="flex gap-4">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#0031FF] to-[#0050FF] flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-md px-4 py-3">
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Analyzing...</span>
-                    </div>
+                    <span className="text-xs text-gray-400 ml-1 mt-1.5 hidden">
+                      {message.timestamp.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </div>
                 </div>
-              )}
+              ))
+            )}
 
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-
-        {/* Input Area */}
-        <div className="border-t border-gray-200 p-4 bg-[#f6f6f6]">
-          <form
-            onSubmit={handleSubmit}
-            className="max-w-3xl mx-auto"
-          >
-            <div className="relative">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask about players, transfers, or tactics..."
-                rows={1}
-                className="w-full px-4 py-3 pr-24 bg-white border border-gray-200 rounded-xl text-[#2C2C2C] placeholder-gray-500 resize-none focus:outline-none focus:border-[#0031FF] transition-all"
-                style={{ minHeight: "48px", maxHeight: "120px" }}
-              />
-
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                {/* Voice Input */}
-                <button
-                  type="button"
-                  onClick={toggleRecording}
-                  className={`p-2 rounded-lg transition-all ${
-                    isRecording
-                      ? "bg-red-500 text-white animate-pulse"
-                      : "text-gray-500 hover:text-[#2C2C2C] hover:bg-gray-100"
-                  }`}
-                >
-                  {isRecording ? (
-                    <MicOff className="w-5 h-5" />
-                  ) : (
-                    <Mic className="w-5 h-5" />
-                  )}
-                </button>
-
-                {/* Send */}
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isLoading}
-                  className="p-2 bg-[#0031FF] text-white rounded-lg hover:bg-[#0028cc] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
+            {isTyping && (
+              <div className="flex items-start gap-3 animate-fade-in">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <BotIcon className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="flex-1 max-w-[600px]">
+                  <div className="rounded-2xl rounded-tl-sm bg-gray-50 px-4 py-3 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-gray-400 chat-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-2 h-2 rounded-full bg-gray-400 chat-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-2 h-2 rounded-full bg-gray-400 chat-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
               </div>
-            </div>
-
-            <p className="text-center text-xs text-gray-500 mt-2">
-              AI responses are based on available data. Always verify critical
-              decisions with additional sources.
-            </p>
-          </form>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
-      </div>
-    </>
+      </main>
+
+      <form
+        onSubmit={handleSubmit}
+        className="fixed bottom-0 left-0 right-0 md:ml-[280px] h-20 md:h-24 bg-white border-t border-gray-200 z-40 pb-safe"
+        aria-label="Send message"
+      >
+        <div className="h-full max-w-[800px] mx-auto px-4 flex items-center gap-3 sm:px-6">
+          <div className="flex-1 relative">
+            <textarea
+              ref={textareaRef}
+              placeholder={placeholder}
+              rows={1}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={handleKeyDown}
+              className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 resize-none text-[15px] text-gray-900 placeholder:text-gray-400 leading-relaxed transition-all max-h-[100px] md:max-h-[120px] overflow-y-auto"
+              aria-label="Message input"
+              aria-describedby="composer-hint"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              className={`absolute right-2 bottom-2 w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                input.trim()
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-gray-300 cursor-not-allowed"
+              }`}
+              aria-label={input.trim() ? "Send message" : "Enter a message to send"}
+            >
+              <ArrowUpIcon className="w-5 h-5 text-white" />
+            </button>
+          </div>
+          <span id="composer-hint" className="sr-only">
+            Enter to send, Shift+Enter for new line
+          </span>
+        </div>
+      </form>
+
+      <button
+        onClick={scrollToBottom}
+        className={`fixed bottom-24 right-4 z-30 w-10 h-10 rounded-full bg-white border border-gray-300 shadow-lg hover:shadow-xl flex items-center justify-center transition-all md:bottom-28 md:right-8 ${
+          showScrollButton ? "scroll-btn-visible" : "scroll-btn-hidden"
+        }`}
+        aria-label="Jump to latest message"
+        title="Jump to latest"
+      >
+        <ChevronDownIcon className="w-5 h-5 text-gray-600" />
+      </button>
+
+      <div
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${
+          isSidebarOpen ? "backdrop-visible" : "backdrop-hidden"
+        }`}
+        onClick={() => setIsSidebarOpen(false)}
+        role="presentation"
+      />
+      <aside
+        className={`fixed left-0 top-0 bottom-0 w-[80vw] max-w-[320px] bg-gray-50 z-50 md:hidden transform transition-transform duration-300 ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        aria-label="Conversation history"
+      >
+        <div className="h-16 px-4 flex items-center justify-between border-b border-gray-200 bg-white">
+          <span className="text-base font-semibold text-gray-900">Conversations</span>
+          <button
+            ref={closeButtonRef}
+            className="p-2 rounded-lg hover:bg-gray-100"
+            aria-label="Close conversations"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            <XIcon className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+        <div className="p-4 border-b border-gray-200 bg-white">
+          <button
+            className="w-full px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
+            aria-label="Start new conversation"
+          >
+            <span className="text-base leading-none">+</span>
+            New Conversation
+          </button>
+        </div>
+        <nav className="p-3 space-y-6" aria-label="Conversations grouped by date">
+          {conversations.length === 0 ? (
+            <div className="py-12 text-center text-gray-500">No conversations yet</div>
+          ) : (
+            Object.entries(groupedConversations).map(([group, items]) => (
+              <div key={group}>
+                <h3 className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  {group}
+                </h3>
+                <div className="space-y-1">
+                  {items.map((conv) => {
+                    const active = conv.id === activeId;
+                    const index = flatConversations.findIndex((item) => item.id === conv.id);
+                    return (
+                      <button
+                        key={conv.id}
+                        onClick={() => {
+                          setActiveId(conv.id);
+                          setIsSidebarOpen(false);
+                        }}
+                        onKeyDown={(event) => handleConversationKeyDown(event, index)}
+                        ref={(el) => {
+                          if (el && index >= 0) conversationButtonRefs.current[index] = el;
+                        }}
+                        className={
+                          active
+                            ? "w-full px-3 py-2.5 rounded-lg text-left bg-blue-50 border border-blue-200"
+                            : "w-full px-3 py-2.5 rounded-lg text-left hover:bg-gray-100 transition-colors group"
+                        }
+                        aria-label={`Conversation: ${conv.title}, ${formatMessageCount(
+                          conv.messages.length || 1
+                        )}`}
+                      >
+                        <p
+                          className={
+                            active
+                              ? "text-sm font-medium text-blue-900 truncate"
+                              : "text-sm font-medium text-gray-900 truncate group-hover:text-blue-600"
+                          }
+                        >
+                          {conv.title}
+                        </p>
+                        <p
+                          className={
+                            active
+                              ? "text-xs text-blue-600 mt-0.5"
+                              : "text-xs text-gray-500 mt-0.5"
+                          }
+                        >
+                          {formatMessageCount(Math.max(conv.messages.length, 1))}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </nav>
+      </aside>
+    </div>
   );
 }

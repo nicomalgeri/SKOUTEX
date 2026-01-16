@@ -173,6 +173,127 @@ html {
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .premium-animate,
+  .premium-animate-delay-2,
+  .premium-animate-delay-3,
+  .premium-animate-delay-4 {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: premiumFadeUp 0.25s ease-out forwards;
+  }
+
+  .premium-animate-delay-2 {
+    animation-delay: 120ms;
+  }
+
+  .premium-animate-delay-3 {
+    animation-delay: 220ms;
+  }
+
+  .premium-animate-delay-4 {
+    animation-delay: 320ms;
+  }
+}
+
+@keyframes premiumFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .transfer-card-animate {
+    opacity: 0;
+    animation: transferFadeIn 0.2s ease-out forwards;
+  }
+}
+
+@keyframes transferFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 300ms ease-out forwards;
+}
+
+@keyframes chat-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.chat-bounce {
+  animation: chat-bounce 400ms ease-in-out infinite;
+}
+
+.backdrop-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease-out;
+}
+
+.backdrop-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 300ms ease-out;
+}
+
+.scroll-btn-hidden {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+.scroll-btn-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+textarea::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+textarea::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   *,

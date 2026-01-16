@@ -217,6 +217,7 @@ export async function GET(
     const lockedBlock = `
       <div>
         <div>Fit score locked. Complete club profile to unlock scoring.</div>
+        <div><a href="/onboarding">Complete Profile</a></div>
         <div>Missing: ${escapeHtml(missingFieldsTop3.join(", "))}</div>
       </div>
     `;
