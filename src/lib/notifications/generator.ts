@@ -4,7 +4,8 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { CreateNotificationInput, NotificationData } from "./types";
+import { CreateNotificationInput, NotificationData, Notification } from "./types";
+import { sendInstantNotification } from "@/lib/email/sender";
 
 /**
  * Create a notification for a user
@@ -13,19 +14,41 @@ export async function createNotification(input: CreateNotificationInput): Promis
   try {
     const supabase = await createClient();
 
-    const { error } = await supabase.from("notifications").insert({
-      user_id: input.user_id,
-      type: input.type,
-      title: input.title,
-      message: input.message || null,
-      data: input.data || {},
-      related_player_id: input.related_player_id || null,
-      related_target_id: input.related_target_id || null,
-    });
+    const { data: notification, error } = await supabase
+      .from("notifications")
+      .insert({
+        user_id: input.user_id,
+        type: input.type,
+        title: input.title,
+        message: input.message || null,
+        data: input.data || {},
+        related_player_id: input.related_player_id || null,
+        related_target_id: input.related_target_id || null,
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error("Failed to create notification:", error);
       return false;
+    }
+
+    // Check if user wants instant email notifications
+    const prefs = await getUserNotificationPreferences(input.user_id);
+    if (prefs.email_instant_enabled) {
+      // Get user email
+      const { data: authUser } = await supabase.auth.admin.getUserById(input.user_id);
+
+      if (authUser?.user?.email && notification) {
+        // Send instant email notification (don't await - let it run in background)
+        sendInstantNotification(
+          authUser.user.email,
+          input.user_id,
+          notification as Notification
+        ).catch((error) => {
+          console.error("Failed to send instant email:", error);
+        });
+      }
     }
 
     return true;
@@ -233,6 +256,9 @@ export async function getUserNotificationPreferences(userId: string) {
     return {
       email_digest_enabled: true,
       email_digest_frequency: "daily",
+      email_digest_daily: true,
+      email_digest_weekly: false,
+      email_instant_enabled: false,
       watchlist_price_change: true,
       watchlist_contract_update: true,
       watchlist_transfer_news: true,

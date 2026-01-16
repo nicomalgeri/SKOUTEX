@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
   watchlist_performance_update BOOLEAN DEFAULT TRUE,
   target_status_change BOOLEAN DEFAULT TRUE,
   transfer_window_alert BOOLEAN DEFAULT TRUE,
+  email_instant_enabled BOOLEAN DEFAULT FALSE,
   last_digest_sent_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),

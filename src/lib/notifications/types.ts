@@ -29,6 +29,9 @@ export interface NotificationPreferences {
   user_id: string;
   email_digest_enabled: boolean;
   email_digest_frequency: "daily" | "weekly" | "never";
+  email_digest_daily: boolean;
+  email_digest_weekly: boolean;
+  email_instant_enabled: boolean;
   watchlist_price_change: boolean;
   watchlist_contract_update: boolean;
   watchlist_transfer_news: boolean;
