@@ -178,32 +178,24 @@ export default function DashboardPage() {
         {/* Hero Stats Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <StatCard
-            icon={<Search className="w-5 h-5" />}
-            label="Searches Today"
-            value="24"
-            change="+12%"
-            changeType="positive"
-          />
-          <StatCard
             icon={<Users className="w-5 h-5" />}
             label="Players Analyzed"
             value={playersData?.data?.length.toString() || "0"}
-            change="+8%"
-            changeType="positive"
           />
           <StatCard
             icon={<Star className="w-5 h-5" />}
-            label="Watchlist"
-            value="32"
-            change="+4"
-            changeType="positive"
+            label="Recent Transfers"
+            value={transfers.length.toString()}
           />
           <StatCard
             icon={<TrendingUp className="w-5 h-5" />}
-            label="Avg Fit Score"
-            value="82"
-            change="+3%"
-            changeType="positive"
+            label="Position Needs"
+            value={positionNeeds.length.toString()}
+          />
+          <StatCard
+            icon={<Search className="w-5 h-5" />}
+            label="Recommendations"
+            value={positionNeeds.reduce((acc, need) => acc + need.recommendations.length, 0).toString()}
           />
         </div>
 
